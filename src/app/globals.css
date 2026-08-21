@@ -1,0 +1,138 @@
+@import 'tailwindcss';
+
+/* Class-based dark mode so the user's explicit choice can override the OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', monospace;
+
+  --radius-card: 0.875rem;
+
+  --color-canvas: oklch(0.985 0.004 90);
+  --color-surface: oklch(1 0 0);
+  --color-surface-muted: oklch(0.968 0.005 90);
+  --color-border-subtle: oklch(0.915 0.006 90);
+  --color-border-strong: oklch(0.855 0.008 90);
+
+  --color-ink: oklch(0.22 0.012 275);
+  --color-ink-muted: oklch(0.485 0.014 275);
+  --color-ink-faint: oklch(0.63 0.012 275);
+
+  --color-brand: oklch(0.52 0.17 283);
+  --color-brand-hover: oklch(0.46 0.175 283);
+  --color-brand-soft: oklch(0.955 0.025 283);
+  --color-brand-ink: oklch(0.38 0.16 283);
+
+  --color-accent: oklch(0.68 0.15 55);
+  --color-accent-soft: oklch(0.96 0.03 65);
+
+  --color-record: oklch(0.55 0.21 25);
+  --color-record-soft: oklch(0.955 0.03 25);
+
+  --color-positive: oklch(0.55 0.13 155);
+  --color-positive-soft: oklch(0.955 0.03 155);
+  --color-warning: oklch(0.63 0.14 75);
+  --color-warning-soft: oklch(0.965 0.04 80);
+}
+
+/*
+ * Dark palette. Only the tokens change; every component references them, so
+ * nothing needs a `dark:` variant for colour.
+ */
+.dark {
+  --color-canvas: oklch(0.185 0.012 275);
+  --color-surface: oklch(0.225 0.014 275);
+  --color-surface-muted: oklch(0.265 0.014 275);
+  --color-border-subtle: oklch(0.315 0.014 275);
+  --color-border-strong: oklch(0.395 0.016 275);
+
+  --color-ink: oklch(0.955 0.005 275);
+  --color-ink-muted: oklch(0.73 0.012 275);
+  --color-ink-faint: oklch(0.585 0.012 275);
+
+  --color-brand: oklch(0.72 0.15 283);
+  --color-brand-hover: oklch(0.78 0.14 283);
+  --color-brand-soft: oklch(0.30 0.06 283);
+  --color-brand-ink: oklch(0.85 0.10 283);
+
+  --color-accent: oklch(0.76 0.13 60);
+  --color-accent-soft: oklch(0.30 0.05 60);
+
+  --color-record: oklch(0.68 0.19 25);
+  --color-record-soft: oklch(0.30 0.07 25);
+
+  --color-positive: oklch(0.72 0.14 155);
+  --color-positive-soft: oklch(0.28 0.05 155);
+  --color-warning: oklch(0.78 0.13 80);
+  --color-warning-soft: oklch(0.30 0.05 80);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border-subtle);
+  }
+
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .dark html,
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* §121 — focus must be visible for keyboard users on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-soft);
+    color: var(--color-brand-ink);
+  }
+}
+
+@layer utilities {
+  .surface-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-card);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Recording indicator: motion plus an explicit label, never colour alone. */
+  @keyframes knowhub-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.86); }
+  }
+
+  .animate-record-pulse {
+    animation: knowhub-pulse 1.6s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-record-pulse {
+      animation: none;
+    }
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+}
