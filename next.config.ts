@@ -24,6 +24,14 @@ const csp = [
 ].join('; ')
 
 const nextConfig: NextConfig = {
+  /*
+   * `KNOWHUB_STANDALONE=1 pnpm build` emits `.next/standalone`: a self-contained
+   * server with only the traced dependencies, runnable with `node server.js` and
+   * no install step. Used to package a build for people who want to try KnowHub
+   * without a development toolchain. Off by default so the normal build is
+   * unchanged.
+   */
+  ...(process.env.KNOWHUB_STANDALONE === '1' ? { output: 'standalone' as const } : {}),
   serverExternalPackages: ['@electric-sql/pglite', '@electric-sql/pglite-pgvector', 'pg', 'mammoth', 'unpdf'],
   experimental: {
     // Keep server action payloads small; audio goes through a route handler.
