@@ -1,8 +1,15 @@
 packages:
   - '.'
+
+# Dependencies allowed to run install scripts. pnpm blocks them by default;
+# these four need theirs (native binaries and WASM assets), and nothing else
+# in the tree does.
 allowBuilds:
-  esbuild: set this to true or false
-  unrs-resolver: set this to true or false
+  esbuild: true
+  unrs-resolver: true
+  '@tailwindcss/oxide': true
+  sharp: true
+
 onlyBuiltDependencies:
   - esbuild
   - unrs-resolver
