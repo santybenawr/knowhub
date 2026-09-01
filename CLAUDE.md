@@ -2,6 +2,10 @@
 
 Operating memory for this repository. Keep it short; details belong in `docs/`.
 
+**Resuming after a break?** Read [`CHECKPOINT.md`](CHECKPOINT.md) first: current
+state, what is verified, decisions already closed, and the six bugs that cost the
+most to find.
+
 ## How we work: Spec-Driven Development
 
 **No code before an approved spec.** The flow, and the gates, are in
