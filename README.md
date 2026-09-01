@@ -57,6 +57,11 @@ Reuniones ──┘                                                            �
                                                                          └─→ audio en el segundo citado
 ```
 
+El desarrollo sigue **Spec-Driven Development**: primero se acuerda qué debe
+hacer el producto y por qué, después cómo, después se implementa. Ver
+[`specs/README.md`](specs/README.md) y la
+[constitución del proyecto](.specify/constitution.md).
+
 Detalle en [`docs/architecture.md`](docs/architecture.md),
 [`docs/database.md`](docs/database.md), [`docs/ai.md`](docs/ai.md) y
 [`docs/security.md`](docs/security.md).

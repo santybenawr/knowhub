@@ -2,6 +2,30 @@
 
 Operating memory for this repository. Keep it short; details belong in `docs/`.
 
+## How we work: Spec-Driven Development
+
+**No code before an approved spec.** The flow, and the gates, are in
+[`specs/README.md`](specs/README.md):
+
+```
+/spec <descripción>  →  specs/NNNN-nombre/spec.md   (el qué y el porqué)
+/plan NNNN           →  plan.md                     (el cómo, y qué se descartó)
+/tasks NNNN          →  tasks.md                    (pasos verificables)
+/implement NNNN      →  código + pruebas
+```
+
+[`.specify/constitution.md`](.specify/constitution.md) is binding. Every spec is
+evaluated against it; a spec that contradicts a principle is wrong, unless the
+principle gets an explicit, dated amendment.
+
+Specs 0001–0008 are retroactive: they pin the observable contract of the existing
+MVP and link each requirement to the code and the test that covers it. They carry
+no `plan.md`/`tasks.md` on purpose — reconstructing a deliberation that never
+happened in that order would be fiction. From 0009 the full triad applies.
+
+If, while implementing, the spec turns out to ask for something impossible or
+contradictory: **stop and fix the spec.** Do not reinterpret it silently.
+
 ## Product
 
 KnowHub turns what you **read** (documents), **write** (notes) and **hear**

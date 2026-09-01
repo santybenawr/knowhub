@@ -14,6 +14,8 @@ const config = [
       'playwright-report/**',
       'test-results/**',
       '.data/**',
+      // Packaged distribution: a copy of the build plus vendored node_modules.
+      'dist/**',
       'next-env.d.ts',
     ],
   },
@@ -34,7 +36,7 @@ const config = [
   },
   {
     // CLI scripts exist to print to the terminal.
-    files: ['scripts/**/*.ts'],
+    files: ['scripts/**/*.ts', 'scripts/**/*.mjs'],
     rules: { 'no-console': 'off' },
   },
 ]
