@@ -32,7 +32,9 @@ ENABLE_DEMO_DATA=true pnpm db:seed
 pnpm dev
 ```
 
-6. Abre **http://localhost:3010**
+6. Abre la dirección que aparece en la terminal — por defecto
+   **http://localhost:3000**. Si ese puerto está ocupado, arranca con otro:
+   `PORT=3010 pnpm dev`
 
 Si cargaste los datos de ejemplo, entra con:
 

@@ -4,8 +4,11 @@
     {
       "name": "knowhub",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
-      "port": 3010
+      "runtimeArgs": [
+        "dev"
+      ],
+      "port": 3010,
+      "autoPort": true
     }
   ]
 }

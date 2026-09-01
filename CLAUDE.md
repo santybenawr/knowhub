@@ -136,7 +136,7 @@ independently: a broken analysis still leaves a readable transcript.
 ## Commands
 
 ```bash
-pnpm dev            # dev server on :3010
+pnpm dev            # dev server (:3000 by default; PORT overrides)
 pnpm build          # production build
 pnpm lint           # eslint
 pnpm typecheck      # tsc --noEmit
@@ -155,3 +155,13 @@ pnpm db:reset       # wipe local PGlite + storage (refuses if DATABASE_URL is se
 - Server Actions return `ActionResult<T>`, never throw across the RSC boundary.
 - User-facing copy is Spanish (neutral). Code, comments and identifiers are English.
 - Tests assert product behaviour, not implementation details.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

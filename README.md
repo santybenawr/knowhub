@@ -80,7 +80,16 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Abre http://localhost:3010 y crea una cuenta.
+Abre la URL que imprime la terminal (por defecto http://localhost:3000) y crea
+una cuenta. Para fijar otro puerto:
+
+```bash
+PORT=3010 pnpm dev
+```
+
+El puerto no está fijado en los scripts a propósito: hacerlo impide que cualquier
+herramienta asigne uno libre, y provoca choques cuando hay varios proyectos
+corriendo.
 
 Para arrancar con datos de ejemplo:
 
