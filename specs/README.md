@@ -40,6 +40,7 @@ spec está mal — o el principio necesita una enmienda explícita y fechada.
 | [0006](0006-inteligencia-de-reuniones/spec.md) | Inteligencia de reuniones | Implementada |
 | [0007](0007-busqueda-y-preguntas/spec.md) | Búsqueda y preguntas | Implementada |
 | [0008](0008-procesamiento-asincrono/spec.md) | Procesamiento asíncrono | Implementada |
+| [0009](0009-landing-cinematografica/spec.md) | Landing cinematográfica | Implementada y publicada en Vercel; límites de QA documentados |
 
 ## Sobre las specs 0001–0008
 

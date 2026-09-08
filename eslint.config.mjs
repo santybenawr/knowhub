@@ -9,6 +9,9 @@ const config = [
   {
     ignores: [
       '.next/**',
+      'marketing/.next/**',
+      'marketing/out/**',
+      'marketing/next-env.d.ts',
       'node_modules/**',
       'coverage/**',
       'playwright-report/**',

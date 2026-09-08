@@ -13,3 +13,9 @@ test-results
 playwright-report
 .DS_Store
 dist
+
+# Generated standalone marketing export and Vercel linkage
+marketing/public/
+marketing/.next/
+marketing/out/
+.vercel/
