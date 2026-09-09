@@ -2,6 +2,10 @@
 
 > Deriva de [spec.md](spec.md). **Aprobado para implementación el 2026-09-08**, con enmienda de prelanzamiento y Vercel registrada en la spec.
 
+## Ampliación autorizada — 2026-09-09
+
+Conectar el proyecto Vercel existente a `santybenawr/knowhub`, con producción desde `codex/knowhub-discovery-landing`. Usar `marketing` como raíz, componentes compartidos habilitados, Corepack/pnpm para instalar y `build:landing` para generar `out`. Mantener las cabeceras existentes y omitir compilaciones de otras ramas. Actualizar la guía de publicación y verificar un despliegue originado por un push, su commit y el dominio público. No modificar `main`, proveedores ni datos.
+
 La exportación pública tendrá una entrada mínima en `marketing/` que importa los mismos componentes de `src/features/marketing/`. Reutiliza Next, Inter y las dependencias existentes. Su salida estática no contiene APIs ni servicios privados. El script `build:landing` prepara assets y exporta las rutas públicas. No se migra el hosting de la app.
 > Fecha: 2026-09-08 · Base: `aa18d022367c55c903f6caa8e9b90b485217829f`.
 

@@ -15,6 +15,15 @@ El propietario solicita «hazla y vamos a publicarla en vercel» y confirma que 
 - Se autoriza implementar y publicar. No requiere cuenta de Higgsfield ni video: se usa arte original con movimiento progresivo, pausa y modo reducido.
 - Una escena de campaña oscura define su propia paleta, sin modificar la preferencia de tema almacenada del resto de la aplicación.
 
+## Enmienda de publicación automática aprobada — 2026-09-09
+
+El propietario solicita subir los cambios a GitHub y conectar el repositorio con Vercel para actualizar la landing mediante futuros pushes. Se autoriza publicar la rama `codex/knowhub-discovery-landing` del repositorio existente `santybenawr/knowhub` y usarla como rama de producción del proyecto `knowhub-prelaunch` (equipo Sacramented).
+
+- Vercel compila desde `marketing/`, con acceso a componentes y dependencias compartidos en la raíz. Solo sirve la exportación `marketing/out/`.
+- La instalación respeta `pnpm@11.5.3` mediante Corepack y el archivo de bloqueo. No requiere secretos de la aplicación.
+- La verificación debe comprobar un despliegue disparado por Git con el mismo commit remoto, estado READY y respuesta pública correcta. Una conexión guardada por sí sola no cumple el criterio.
+- La rama `main` conserva su contenido. Las credenciales y la configuración local de sesión no se suben a GitHub.
+
 ## Problema original
 
 La portada actual explica documentos, notas y reuniones mediante texto y tarjetas. Su ejemplo de decisiones y fuentes es estático: el visitante no experimenta el recorrido pregunta → respuesta → fuente que distingue al producto. La identidad y el recorrido existen en la aplicación, pero la portada todavía no los convierten en una demostración visual diferenciadora.

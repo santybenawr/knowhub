@@ -48,6 +48,13 @@
   - Comparar HEAD remoto antes de integrar; conservar trabajo paralelo.
   - Explicar reversión y pendientes. Publicar solo dentro de autorización aplicable.
 
+## Publicación automática — 2026-09-09
+
+- [x] Subir la rama de la landing al repositorio existente sin modificar `main`.
+- [x] Conectar el proyecto Vercel y guardar rama de producción, compilación estática y filtro de ramas.
+- [x] Documentar cómo editar, validar, publicar y revertir mediante Git.
+- [ ] Confirmar despliegue automático desde un nuevo push: mismo commit, READY y dominio público.
+
 ## Trazabilidad
 
 Las pruebas siguientes son **casos previstos**, no implementados ni ejecutados:

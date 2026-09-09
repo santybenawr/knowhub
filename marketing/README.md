@@ -29,16 +29,47 @@ pnpm test:landing
 
 `test:landing` presupone `pnpm build:landing` y usa Python 3 para servir la exportación. Si ya hay un servidor en 3033 lo reutiliza. Los tests de Chromium pueden requerir un entorno fuera del sandbox de Codex en macOS; consultar el informe de validación.
 
-## Publicar en Vercel
+## Actualizar la web con GitHub
 
-La salida es `marketing/out/`, incluido `vercel.json` con headers. Publicar únicamente esa carpeta en un proyecto dedicado. No seleccionar la raíz del repositorio: contiene la app completa y su backend.
+Repositorio: [santybenawr/knowhub](https://github.com/santybenawr/knowhub/tree/codex/knowhub-discovery-landing). Vercel está conectado a la rama **`codex/knowhub-discovery-landing`**. Cada push a esa rama inicia una compilación de producción; al completarse correctamente, actualiza **https://knowhub-prelaunch.vercel.app**. La rama `main` conserva la aplicación existente.
+
+Desde un checkout limpio de esa rama:
 
 ```sh
-vercel login
-vercel deploy marketing/out --prod --yes --project knowhub-prelaunch
+git switch codex/knowhub-discovery-landing
+git pull --ff-only
+# Editar los archivos de la landing.
+pnpm build:landing
+pnpm lint
+pnpm typecheck
+git add <archivos-editados>
+git commit -m "feat(marketing): describir el cambio"
+git push
 ```
 
-Crear primero el proyecto `knowhub-prelaunch` en la cuenta/equipo correspondiente si aún no existe. No hay variables de entorno requeridas para esta presentación. La conexión con GitHub, un dominio propio y la app pública se pueden configurar después.
+Para cambios de lógica compartida, ejecutar también `pnpm verify`. Confirmar en los despliegues de Vercel que el commit del push alcanza `Ready` y abrir la URL pública. Una compilación fallida conserva la publicación anterior. Para revertir un cambio publicado, usar `git revert <commit>` y hacer push; no forzar ni reescribir la rama.
+
+### Configuración del proyecto Vercel
+
+Estos ajustes están guardados en el proyecto `knowhub-prelaunch`, equipo Sacramented:
+
+| Ajuste | Valor |
+| --- | --- |
+| Repositorio | `santybenawr/knowhub` |
+| Rama de producción | `codex/knowhub-discovery-landing` |
+| Root Directory | `marketing` |
+| Incluir archivos fuera del directorio raíz | Sí; componentes y dependencias compartidos |
+| Framework Preset | Other |
+| Node.js | 24.x |
+| Install Command | `cd .. && corepack pnpm install --frozen-lockfile` |
+| Build Command | `cd .. && corepack pnpm build:landing` |
+| Output Directory | `out` |
+
+Corepack usa la versión de pnpm fijada en el `package.json` de la raíz. El paso «Ignored Build Step» omite pushes a otras ramas mediante `[ -n "$VERCEL_GIT_COMMIT_REF" ] && [ "$VERCEL_GIT_COMMIT_REF" != "codex/knowhub-discovery-landing" ]`. Si se cambia la rama de publicación, actualizar también ese filtro.
+
+Solo se sirve `marketing/out/`; `marketing/vercel.json` conserva las cabeceras de la presentación. No se requieren variables de entorno de la app. No subir `.env*`, `.vercel/`, sesiones de CLI, base de datos ni archivos de almacenamiento. La configuración local de Vercel permanece ignorada por Git.
+
+El despliegue inicial del 8 de septiembre se hizo desde la exportación estática local. Desde la conexión de Git, el flujo habitual es el push; no reutilizar aquel comando de subida directa de `marketing/out/` con los nuevos ajustes de compilación.
 
 La publicación conserva el estado «Próximamente» y el CTA a la demo. La aplicación existente usa la misma portada con CTA a `/signup` y acceso a `/login`.
 
