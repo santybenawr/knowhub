@@ -49,6 +49,14 @@ Verificación sin credenciales: portada, privacidad, términos, fuentes, imagen 
 
 En el navegador público se comprobó pregunta → respuesta → cita con la tecla Enter; el foco llega a «Aquí quedó la decisión», con fuente de Santiago en 01:38. Sin errores ni advertencias de consola observados.
 
+## Conexión GitHub → Vercel — 2026-09-09
+
+El repositorio privado existente `santybenawr/knowhub` quedó conectado al proyecto Vercel. Se subió la rama `codex/knowhub-discovery-landing` y se seleccionó como producción. `main` mantiene `aa18d022367c55c903f6caa8e9b90b485217829f`. La guía `marketing/README.md` registra los ajustes efectivos: raíz `marketing`, acceso al código compartido, instalación con Corepack/pnpm y salida estática `out`.
+
+Prueba completa: el push de `015f3ede36cfae091dc43b1cf6da8153bc1eeee9` produjo automáticamente `dpl_2mYnkpA22yAwivRZn84h4jdmbjCJ` (`source: git`, `target: production`, `READY`). Vercel asignó `knowhub-prelaunch.vercel.app` a ese despliegue. Se verificaron HTTP 200 en portada, legales, imagen, icono, CSS y scripts; H1 único, CTA y cabeceras de seguridad conservados; `/signup` y `/api/health` devuelven 404. El filtro de ramas se comprobó con la rama de producción, `main`, otra rama y ausencia de rama.
+
+Esta ampliación cambia configuración de publicación y documentación, sin alterar interfaz ni código de la app. La compilación remota pasó; no se repitieron las suites de lógica ni E2E por este cambio. Los límites de validación anteriores permanecen documentados.
+
 ## Reversión y mantenimiento
 
 Revertir los cambios de marketing mediante Git no requiere operaciones sobre la base de datos. Para editar contenido, usar los componentes compartidos y ejecutar `pnpm build:landing`. La entrada pública importa los mismos componentes; no es una copia independiente de la landing. Ver `marketing/README.md`.

@@ -53,7 +53,7 @@
 - [x] Subir la rama de la landing al repositorio existente sin modificar `main`.
 - [x] Conectar el proyecto Vercel y guardar rama de producción, compilación estática y filtro de ramas.
 - [x] Documentar cómo editar, validar, publicar y revertir mediante Git.
-- [ ] Confirmar despliegue automático desde un nuevo push: mismo commit, READY y dominio público.
+- [x] Confirmar despliegue automático desde un nuevo push: commit `015f3ede36cfae091dc43b1cf6da8153bc1eeee9`, despliegue `dpl_2mYnkpA22yAwivRZn84h4jdmbjCJ`, origen Git, producción READY y dominio público verificado el 2026-09-09.
 
 ## Trazabilidad
 
