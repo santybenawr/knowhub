@@ -60,6 +60,22 @@ database, which is single-user and has no `auth` schema.
 
 ## Authentication
 
+### Invitation acceptance (2026-09-15)
+
+Invitation pages only render a confirmation. Their Server Action authenticates
+again, validates the token and passes the session user ID to the service. The
+service compares the stored account email to the recipient and checks the active
+workspace, sender's current assignment permission and current member limit.
+Acceptance locks the workspace row, conditionally consumes the token and inserts
+the membership in one transaction, preserving an existing member's role.
+
+Covered by `tests/integration/invitations.test.ts` and
+`tests/unit/invitation-actions.test.ts`. Email ownership is **not verified** yet;
+matching an address is not proof of ownership. Production blockers are tracked in
+[production-readiness.md](production-readiness.md).
+
+### Credentials and sessions
+
 - **Passwords**: scrypt (`node:crypto`), 16-byte random salt, 64-byte key. No
   native addon to keep patched.
 - **Sessions**: opaque random tokens in an httpOnly cookie; only the SHA-256 is

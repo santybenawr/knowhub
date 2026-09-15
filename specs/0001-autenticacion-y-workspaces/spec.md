@@ -119,7 +119,12 @@ exactamente qué puede hacer esa persona.
 | R4 | `createPasswordResetToken()`, `resetPassword()` | `tests/integration/auth.test.ts` |
 | R5 | [`server/permissions/`](../../src/server/permissions/) | `tests/integration/tenant-isolation.test.ts`, `e2e/meetings.spec.ts` |
 | R6 | [`server/workspaces/`](../../src/server/workspaces/) | — |
-| R7, R8 | `inviteMember()`, `changeMemberRole()`, `removeMember()` | `tests/unit/permissions.test.ts` |
+| R7, R8 | `inviteMember()`, `acceptInvitation()`, `changeMemberRole()`, `removeMember()` | `tests/unit/permissions.test.ts`, `tests/integration/invitations.test.ts`, `tests/unit/invitation-actions.test.ts` |
+
+Corrección prospectiva del flujo de invitación (2026-09-15):
+[spec 0010](../0010-invitaciones-seguras/spec.md). Añade comprobación del
+destinatario, consumo atómico y aceptación explícita por POST. No modifica el
+carácter retrospectivo ni las limitaciones de correo de esta spec.
 
 Puerta única de entrada: [`server/auth/guard.ts`](../../src/server/auth/guard.ts).
 Detalle de seguridad en [`docs/security.md`](../../docs/security.md).

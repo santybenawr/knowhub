@@ -1,7 +1,28 @@
 # CHECKPOINT — KnowHub
 
-> Última actualización: **21 ago 2026**
-> Estado: **MVP completo y verificado.** SDD adoptado. Listo para la siguiente función.
+> Última actualización: **15 sep 2026**
+> Estado: **MVP web en preparación para producción.** App Store, pagos, correo y
+> proveedores reales pendientes; no interpretar las pruebas locales como aprobación de lanzamiento.
+
+## Retoma actual — Codex
+
+- Rama local de app: `codex/knowhub-production-readiness`, creada desde `c9a798e`.
+  La rama `codex/knowhub-discovery-landing` tiene despliegue automático de marketing.
+- Checkout de trabajo: `work/knowhub` dentro de la tarea de Codex. El checkout
+  original `/Users/macbook/Documents/knowhub` se conserva sin modificar.
+- Corregido el acceso por invitación con otro correo, el consumo durante GET,
+  reutilización concurrente y comprobación de cupo/permisos al aceptar. Ver
+  [spec 0010](specs/0010-invitaciones-seguras/spec.md).
+- Verificación actual: `pnpm verify`, 168 pruebas en 20 archivos; lint, tipos y
+  build correctos. Recorrido de invitación en navegador local verificado.
+- Usuario: cobrará desde Colombia; planes personales y de equipo con precios
+  distintos. Precios y figura del vendedor sin definir; Apple Developer sin confirmar.
+- [Inventario de pendientes y ruta de lanzamiento](docs/production-readiness.md).
+  Siguiente bloque técnico recomendado: recuperación de cuentas/sesiones y
+  conservación del audio al reemplazarlo. Monetización requiere especificación
+  comercial antes de implementar nuevas reglas.
+- Los apartados inferiores conservan el contexto histórico del MVP del 21 de
+  agosto. Para estado de lanzamiento y pruebas recientes prevalece esta sección.
 
 Este archivo existe para retomar el proyecto en una sesión nueva sin perder
 contexto. Si algo aquí contradice al código, gana el código — y hay que
@@ -13,8 +34,8 @@ corregir este archivo.
 
 **KnowHub** — plataforma SaaS de conocimiento y memoria de reuniones. Captura
 documentos, notas y grabaciones; transcribe, analiza, indexa y responde preguntas
-en lenguaje natural **con citas que enlazan al segundo exacto del audio o a la
-página del documento**.
+en lenguaje natural **con citas a fragmentos de documento o intervalos de audio**.
+La existencia de una cita no garantiza por sí sola el respaldo de cada afirmación.
 
 | | |
 | --- | --- |

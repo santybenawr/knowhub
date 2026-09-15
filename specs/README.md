@@ -41,6 +41,7 @@ spec está mal — o el principio necesita una enmienda explícita y fechada.
 | [0007](0007-busqueda-y-preguntas/spec.md) | Búsqueda y preguntas | Implementada |
 | [0008](0008-procesamiento-asincrono/spec.md) | Procesamiento asíncrono | Implementada |
 | [0009](0009-landing-cinematografica/spec.md) | Landing cinematográfica | Implementada y publicada en Vercel; límites de QA documentados |
+| [0010](0010-invitaciones-seguras/spec.md) | Corrección de invitaciones | Implementada; pruebas y recorrido local verificados; PostgreSQL remoto pendiente |
 
 ## Sobre las specs 0001–0008
 

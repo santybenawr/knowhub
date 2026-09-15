@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, gt, isNull } from 'drizzle-orm'
 import { getDb } from '@/server/db/client'
 import {
   users,
@@ -124,28 +124,53 @@ export async function inviteMember(input: {
 
 export async function acceptInvitation(token: string, userId: string): Promise<string> {
   const db = await getDb()
-  const rows = await db
-    .select()
-    .from(workspaceInvitations)
-    .where(and(eq(workspaceInvitations.tokenHash, hashToken(token)), isNull(workspaceInvitations.acceptedAt)))
-    .limit(1)
+  return db.transaction(async (tx) => {
+    const [invitation] = await tx.select().from(workspaceInvitations).where(and(
+      eq(workspaceInvitations.tokenHash, hashToken(token)), isNull(workspaceInvitations.acceptedAt),
+    )).limit(1)
+    if (!invitation) throw notFound('Esta invitación no es válida.')
 
-  const invitation = rows[0]
-  if (!invitation) throw notFound('Esta invitación no es válida.')
-  if (invitation.expiresAt.getTime() < Date.now()) throw validation('Esta invitación expiró.')
+    const [user] = await tx.select({ email: users.email }).from(users)
+      .where(eq(users.id, userId)).limit(1)
+    if (!user || user.email.trim().toLowerCase() !== invitation.email.trim().toLowerCase()) {
+      throw forbidden('Inicia sesión con el correo al que se envió esta invitación.')
+    }
 
-  await db.transaction(async (tx) => {
+    // Different invitations compete for the same seats. Serialize their acceptance
+    // on the workspace row, including rechecking a plan changed after invitation.
+    const [workspace] = await tx.select({ plan: workspaces.plan }).from(workspaces)
+      .where(and(eq(workspaces.id, invitation.workspaceId), isNull(workspaces.deletedAt)))
+      .for('update')
+    if (!workspace) throw notFound('Esta invitación no es válida.')
+    const now = new Date()
+    if (invitation.expiresAt.getTime() <= now.getTime()) throw validation('Esta invitación expiró.')
+
+    const members = await tx.select({ userId: workspaceMembers.userId, role: workspaceMembers.role })
+      .from(workspaceMembers).where(eq(workspaceMembers.workspaceId, invitation.workspaceId))
+    const inviter = members.find((member) => member.userId === invitation.invitedBy)
+    if (!inviter || !canAssignRole(inviter.role, invitation.role)) {
+      throw forbidden('Esta invitación ya no tiene autorización. Solicita una nueva al administrador.')
+    }
+    if (!members.some((member) => member.userId === userId)) {
+      const check = checkLimit(getPlanLimits(workspace.plan), 'maxMembers', members.length)
+      if (!check.allowed) throw validation(check.reason)
+    }
+
+    // A second request may have read the invitation before waiting on the lock.
+    // Claim it conditionally; a failed insert rolls back token consumption too.
+    const claimed = await tx.update(workspaceInvitations).set({ acceptedAt: now }).where(and(
+      eq(workspaceInvitations.id, invitation.id),
+      isNull(workspaceInvitations.acceptedAt),
+      gt(workspaceInvitations.expiresAt, now),
+    )).returning({ id: workspaceInvitations.id })
+    if (!claimed[0]) throw notFound('Esta invitación no es válida.')
+
     await tx
       .insert(workspaceMembers)
       .values({ workspaceId: invitation.workspaceId, userId, role: invitation.role })
       .onConflictDoNothing()
-    await tx
-      .update(workspaceInvitations)
-      .set({ acceptedAt: new Date() })
-      .where(eq(workspaceInvitations.id, invitation.id))
+    return invitation.workspaceId
   })
-
-  return invitation.workspaceId
 }
 
 export async function changeMemberRole(input: {
