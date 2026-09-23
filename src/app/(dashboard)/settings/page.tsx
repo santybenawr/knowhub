@@ -56,7 +56,7 @@ export default async function SettingsPage() {
               label: 'Transcripción',
               value: providers.transcription === 'openai' ? 'OpenAI Whisper' : 'Local (desarrollo)',
             },
-            { label: 'Facturación', value: providers.billing === 'stripe' ? 'Stripe' : 'No configurada' },
+            { label: 'Facturación', value: 'No implementada' },
           ].map((row) => (
             <div key={row.label} className="flex items-center justify-between gap-3 px-5 py-3">
               <dt className="text-sm text-ink-muted">{row.label}</dt>

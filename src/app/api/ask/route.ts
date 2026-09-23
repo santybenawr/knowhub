@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { requireApiContext } from '@/server/auth/guard'
 import { assertProjectInWorkspace, requireDocumentAccess, requireMeetingAccess, requireNoteAccess } from '@/server/permissions'
 import { getAIProvider } from '@/server/ai'
-import { keepCitedOnly, retrieveContext, type Citation, type RagScope } from '@/server/ai/rag'
+import { validateCitedAnswer, retrieveContext, type Citation, type RagScope } from '@/server/ai/rag'
 import { NO_EVIDENCE_ANSWER } from '@/server/ai/prompts'
 import {
   appendMessage,
@@ -21,7 +21,7 @@ import { recordUsage } from '@/server/usage'
 import { trackEvent } from '@/server/analytics'
 import { errorResponse, unauthorizedResponse } from '@/server/http'
 import { checkLimit, getPlanLimits } from '@/config/plans'
-import { limitExceeded, validation } from '@/lib/errors'
+import { limitExceeded, notFound, validation } from '@/lib/errors'
 import { getUsageSummary } from '@/server/usage'
 
 export const dynamic = 'force-dynamic'
@@ -44,10 +44,9 @@ const bodySchema = z.object({
  * §102/§110/§117 — Ask KnowHub.
  *
  * Streams NDJSON frames so the client can show retrieval and generation as they
- * happen: `status` → `citations` → many `delta` → `done`. Citations are sent
- * *before* the text so the sources are on screen while the answer is still
- * being written, which is what makes them feel like evidence rather than a
- * footnote.
+ * happen: `status` → `citations` → `delta` → `done`.
+ * Status is streamed during generation; answer text is buffered until its
+ * citation references are checked, then emitted with the validated sources.
  *
  * The scope is re-verified server-side against real workspace membership; a
  * meeting id in the request body grants nothing on its own (§16).
@@ -85,7 +84,14 @@ export async function POST(request: NextRequest) {
 
     // Verify an explicitly-supplied conversation belongs to this caller.
     if (parsed.data.conversationId) {
-      await getConversation(parsed.data.conversationId, context.access)
+      const conversation = await getConversation(parsed.data.conversationId, context.access)
+      if (
+        conversation.scope !== rawScope.type ||
+        conversation.projectId !== (rawScope.type === 'project' ? rawScope.projectId : null) ||
+        conversation.documentId !== (rawScope.type === 'document' ? rawScope.documentId : null) ||
+        conversation.noteId !== (rawScope.type === 'note' ? rawScope.noteId : null) ||
+        conversation.meetingId !== (rawScope.type === 'meeting' ? rawScope.meetingId : null)
+      ) throw validation('Inicia una conversación nueva para cambiar el alcance de la búsqueda.')
     }
 
     const history = await getRecentHistory(conversationId)
@@ -127,7 +133,6 @@ export async function POST(request: NextRequest) {
             controller.enqueue(frame({ type: 'delta', value: answer }))
           } else {
             citations = retrieved.citations
-            controller.enqueue(frame({ type: 'citations', value: citations }))
             controller.enqueue(frame({ type: 'status', value: 'generating' }))
 
             const provider = getAIProvider()
@@ -136,12 +141,13 @@ export async function POST(request: NextRequest) {
               temperature: 0.1,
             })) {
               answer += delta
-              controller.enqueue(frame({ type: 'delta', value: delta }))
             }
-            answer = answer.trim() || NO_EVIDENCE_ANSWER
-            citations = keepCitedOnly(answer, citations)
-            // Re-send the pruned set so the UI lists only what was cited.
+            const validated = validateCitedAnswer(answer, citations)
+            answer = validated.answer
+            citations = validated.citations
+            // Never send provisional text before checking its source references.
             controller.enqueue(frame({ type: 'citations', value: citations }))
+            controller.enqueue(frame({ type: 'delta', value: answer }))
           }
 
           const messageId = await appendMessage({
@@ -201,16 +207,19 @@ async function resolveScope(
     }
     case 'document': {
       const access = await requireDocumentAccess(userId, scope.documentId)
+      if (access.workspaceId !== workspaceId) throw notFound()
       const document = await getDocument(scope.documentId, access.workspaceId)
       return { type: 'document', documentId: document.id, title: document.title }
     }
     case 'note': {
       const access = await requireNoteAccess(userId, scope.noteId)
+      if (access.workspaceId !== workspaceId) throw notFound()
       const note = await getNote(scope.noteId, access.workspaceId)
       return { type: 'note', noteId: note.id, title: note.title || 'Nota sin título' }
     }
     case 'meeting': {
       const access = await requireMeetingAccess(userId, scope.meetingId)
+      if (access.workspaceId !== workspaceId) throw notFound()
       const meeting = await getMeeting(scope.meetingId, access.workspaceId)
       return { type: 'meeting', meetingId: meeting.id, title: meeting.title }
     }

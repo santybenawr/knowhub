@@ -13,18 +13,17 @@ export function ProviderNotice() {
   if (!mockedAi && !mockedTranscription) return null
 
   const parts: string[] = []
-  if (mockedAi) parts.push('el análisis y las respuestas usan el proveedor local determinista')
-  if (mockedTranscription) parts.push('la transcripción de audio usa el proveedor de desarrollo')
+  if (mockedAi) parts.push('el análisis y las respuestas se generan en modo de ejemplo')
+  if (mockedTranscription) parts.push('el audio genera una transcripción ficticia de ejemplo, no lo que se dijo en la grabación')
 
   return (
     <div className="flex items-start gap-3 rounded-card border border-warning/40 bg-warning-soft p-4">
       <FlaskConical className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
       <div className="text-sm">
-        <p className="font-medium text-ink">Modo desarrollo sin proveedores de IA</p>
+        <p className="font-medium text-ink">Modo de demostración local</p>
         <p className="mt-0.5 text-ink-muted">
-          Sin credenciales configuradas, {parts.join(' y ')}. Todo el flujo funciona, pero los resultados
-          no provienen de un modelo. Configura <code className="font-mono text-xs">OPENAI_API_KEY</code>{' '}
-          para activar los proveedores reales, o importa una transcripción real desde una reunión.
+          En esta configuración, {parts.join(' y ')}.
+          {mockedTranscription ? ' Para trabajar con el contenido real de una reunión, importa su transcripción revisada.' : ''}
         </p>
       </div>
     </div>

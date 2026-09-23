@@ -47,7 +47,7 @@ export function useAsk(scope: AskScope) {
   const ask = React.useCallback(
     async (question: string) => {
       const trimmed = question.trim()
-      if (trimmed.length < 2 || pending) return
+      if (trimmed.length < 2 || pending || abortRef.current) return
 
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       setTurns((current) => [
@@ -81,6 +81,7 @@ export function useAsk(scope: AskScope) {
         const decoder = new TextDecoder()
         let buffer = ''
         let answer = ''
+        let terminal = false
 
         while (true) {
           const { done, value } = await reader.read()
@@ -111,23 +112,27 @@ export function useAsk(scope: AskScope) {
                 patch(id, { answer })
                 break
               case 'done':
+                terminal = true
                 conversationRef.current = frame.conversationId
                 patch(id, { status: 'done' })
                 break
               case 'error':
+                terminal = true
                 patch(id, { status: 'error', error: frame.value })
                 break
             }
           }
         }
 
-        patch(id, { status: 'done' })
+        if (!terminal) patch(id, { status: 'error', error: 'La respuesta quedó incompleta. Intenta de nuevo.' })
       } catch (err) {
         if ((err as Error)?.name === 'AbortError') return
         patch(id, { status: 'error', error: 'Se interrumpió la conexión. Intenta de nuevo.' })
       } finally {
-        setPending(false)
-        abortRef.current = null
+        if (abortRef.current === controller) {
+          setPending(false)
+          abortRef.current = null
+        }
       }
     },
     [patch, pending, scope],
@@ -135,6 +140,7 @@ export function useAsk(scope: AskScope) {
 
   const reset = React.useCallback(() => {
     abortRef.current?.abort()
+    abortRef.current = null
     conversationRef.current = null
     setTurns([])
     setPending(false)

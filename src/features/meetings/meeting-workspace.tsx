@@ -78,8 +78,8 @@ export function MeetingWorkspace({
   onRetryStage,
 }: Props) {
   const playerRef = React.useRef<AudioPlayerHandle>(null)
-  const [currentTime, setCurrentTime] = React.useState(0)
-  const [tab, setTab] = React.useState(analysis ? 'resumen' : 'transcripcion')
+  const [currentTime, setCurrentTime] = React.useState(startAt ?? 0)
+  const [tab, setTab] = React.useState(startAt !== null || !analysis ? 'transcripcion' : 'resumen')
 
   const segmentById = React.useMemo(
     () => new Map(segments.map((segment) => [segment.id, segment])),
@@ -98,6 +98,7 @@ export function MeetingWorkspace({
         const segment = segmentById.get(id)
         if (segment) {
           seekTo(segment.startSeconds)
+          setTab('transcripcion')
           return
         }
       }

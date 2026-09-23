@@ -3,6 +3,8 @@ import { getServerEnv } from '@/config/env'
 import { getStorageProvider, verifyLocalSignature } from '@/server/storage'
 import { assertSafeStoragePath } from '@/server/storage/paths'
 
+import { parseByteRange } from '@/server/storage/range'
+
 export const dynamic = 'force-dynamic'
 
 /**
@@ -44,12 +46,21 @@ export async function GET(
 
   try {
     const { body, mimeType } = await getStorageProvider().read(path)
-    return new NextResponse(new Uint8Array(body), {
+    // If-Range cannot be validated without an ETag/Last-Modified, so return
+    // the full representation rather than combining incompatible fragments.
+    const range = parseByteRange(request.headers.has('if-range') ? null : request.headers.get('range'), body.byteLength)
+    if (range === 'unsatisfiable') {
+      return new NextResponse(null, { status: 416, headers: { 'Content-Range': `bytes */${body.byteLength}`, 'Cache-Control': 'no-store' } })
+    }
+    const bytes = range ? body.subarray(range.start, range.end + 1) : body
+    return new NextResponse(new Uint8Array(bytes), {
+      status: range ? 206 : 200,
       headers: {
         'Content-Type': mimeType,
-        'Content-Length': String(body.byteLength),
+        'Content-Length': String(bytes.byteLength),
+        ...(range ? { 'Content-Range': `bytes ${range.start}-${range.end}/${body.byteLength}` } : {}),
         // Private, and only for as long as the signature is valid anyway.
-        'Cache-Control': 'private, max-age=600',
+        'Cache-Control': 'private, no-store',
         'Content-Disposition': 'inline',
         'X-Content-Type-Options': 'nosniff',
         // Range support lets the player seek without downloading the whole file.

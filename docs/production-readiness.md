@@ -1,5 +1,11 @@
 # KnowHub — Retoma y pendientes de producción
 
+> Actualización 22/09/2026: consultar [auditoría del MVP](mvp-audit-2026-09-22.md)
+> para las correcciones posteriores de reset, conservación de audio, citas,
+> reproducción, notas y estado de facturación. La tabla de abajo conserva el
+> diagnóstico inicial; no todos sus problemas siguen presentes ni todas las
+> condiciones de cierre de producción están satisfechas.
+
 Revisión: 2026-09-15. Base de la app: `aa18d02`; base de este checkout con landing:
 `c9a798e`. Rama de trabajo: `codex/knowhub-production-readiness`.
 

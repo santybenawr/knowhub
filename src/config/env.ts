@@ -119,7 +119,8 @@ export function getProviderStatus() {
     transcription: transcriptionProvider,
     storage: env.STORAGE_PROVIDER,
     database: env.DATABASE_URL ? 'postgres' : 'pglite',
-    billing: env.STRIPE_SECRET_KEY ? 'stripe' : 'none',
+    // Credentials alone do not implement checkout or entitlement handling.
+    billing: 'none',
   } as const
 }
 

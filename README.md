@@ -18,6 +18,19 @@ La función insignia son las **reuniones**: grabas, y KnowHub transcribe, separa
 hablantes cuando el proveedor lo permite, marca los tiempos, extrae decisiones y
 pendientes, y deja todo enlazado a su evidencia.
 
+## MVP de presentación · septiembre de 2026
+
+Para preparar una demo local aislada: `npm run demo:prepare` y después `npm run demo`.
+Abrir `http://127.0.0.1:3010/login` con `demo@knowhub.test` / `knowhub-demo-2026`.
+Usa datos ficticios, PGlite y almacenamiento propios dentro de `.data/presentation`.
+Los proveedores de IA/transcripción son mock explícitos: subir audio en ese perfil
+produce una transcripción de ejemplo, no reconoce lo dicho en el archivo.
+La importación de transcripciones conserva el texto aportado por el usuario.
+
+Ver [auditoría, limitaciones y guion de demo](docs/mvp-audit-2026-09-22.md).
+Suscripciones, App Store y despliegue público de la aplicación todavía requieren
+implementación/configuración y validación. La landing publicada es independiente.
+
 ## Features
 
 **Captura**
@@ -36,7 +49,7 @@ pendientes, y deja todo enlazado a su evidencia.
 **Recuperación**
 - Búsqueda híbrida: full-text de PostgreSQL + similitud vectorial (pgvector)
 - Preguntar a KnowHub sobre todo el workspace, un proyecto, un documento o una reunión
-- Respuestas en streaming, con citas numeradas
+- Progreso en streaming; respuesta entregada tras validar los identificadores de sus citas
 - Cada cita abre su evidencia: la página del documento o el audio en el segundo citado
 - Contenido relacionado por similitud semántica
 

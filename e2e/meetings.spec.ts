@@ -98,6 +98,13 @@ test('an imported transcript yields decisions and action items with real sources
   await page.getByRole('tab', { name: 'Transcripción' }).click()
   await expect(page.getByText(/Entonces vamos a seleccionar el proveedor B/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Santiago' })).toBeVisible()
+
+  // External citations must reveal the transcript even when they start at 0.
+  await page.goto(`/meetings/${meetingId}?t=0`)
+  await expect(page.getByRole('tab', { name: 'Transcripción' })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('tab', { name: 'Resumen', exact: true }).click()
+  await page.getByRole('button', { name: /Fuente/ }).first().click()
+  await expect(page.getByRole('tab', { name: 'Transcripción' })).toHaveAttribute('aria-selected', 'true')
 })
 
 /** §150 — Isolation, verified through the HTTP surface. */

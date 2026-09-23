@@ -40,6 +40,7 @@ export default async function MeetingPage({ params, searchParams }: Params) {
   const { user } = await requirePageContext()
   const { meetingId } = await params
   const { t } = await searchParams
+  const startAt = parseTimeParam(t)
 
   let access
   try {
@@ -119,10 +120,11 @@ export default async function MeetingPage({ params, searchParams }: Params) {
         </div>
       ) : (
         <MeetingWorkspace
+          key={`${meetingId}:${startAt ?? 'overview'}`}
           meetingId={meetingId}
           audioUrl={audioUrl}
           durationSeconds={meeting.durationSeconds}
-          startAt={parseTimeParam(t)}
+          startAt={startAt}
           segments={transcript.segments.map((segment) => ({
             id: segment.id,
             speakerKey: segment.speakerKey,

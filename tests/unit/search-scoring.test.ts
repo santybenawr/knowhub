@@ -122,11 +122,11 @@ describe('keepCitedOnly', () => {
     expect(keepCitedOnly('Se decidió el proveedor B. [2]', citations).map((c) => c.index)).toEqual([2])
   })
 
-  it('keeps every source when the answer cited none, so the user can still check', () => {
-    expect(keepCitedOnly('Una respuesta sin marcadores.', citations)).toHaveLength(2)
+  it('does not attribute sources when the answer cited none', () => {
+    expect(keepCitedOnly('Una respuesta sin marcadores.', citations)).toHaveLength(0)
   })
 
   it('ignores citation numbers that do not exist', () => {
-    expect(keepCitedOnly('Respuesta [9]', citations)).toHaveLength(2)
+    expect(keepCitedOnly('Respuesta [9]', citations)).toHaveLength(0)
   })
 })

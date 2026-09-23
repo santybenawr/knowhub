@@ -57,7 +57,8 @@ export async function updateNote(input: {
   const db = await getDb()
   const existing = await getNote(input.noteId, input.access.workspaceId)
 
-  const contentChanged = input.content !== undefined && input.content !== existing.content
+  const contentChanged = (input.content !== undefined && input.content !== existing.content) ||
+    (input.title !== undefined && input.title.trim().slice(0, 200) !== existing.title)
 
   await db
     .update(notes)

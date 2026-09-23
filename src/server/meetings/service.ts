@@ -16,7 +16,7 @@ import { recordUsage } from '@/server/usage'
 import { trackEvent } from '@/server/analytics'
 import { checkLimit, getPlanLimits } from '@/config/plans'
 import { getServerEnv } from '@/config/env'
-import { limitExceeded, notFound, validation } from '@/lib/errors'
+import { AppError, limitExceeded, notFound, validation } from '@/lib/errors'
 import { formatDateEs } from '@/lib/time'
 import { parseTranscriptText } from '@/server/transcription'
 import type { WorkspaceAccess } from '@/server/permissions'
@@ -117,6 +117,9 @@ export async function attachAudio(input: {
 
   const durationSeconds = input.durationSeconds ?? meeting.durationSeconds ?? null
   if (durationSeconds !== null) {
+    if (!Number.isFinite(durationSeconds) || durationSeconds < 0) {
+      throw validation('La duración del audio debe ser un número no negativo.')
+    }
     const maxSeconds =
       Math.min(limits.maxMeetingDurationMinutes, getServerEnv().MAX_MEETING_DURATION_MINUTES) * 60
     if (durationSeconds > maxSeconds) {
@@ -126,17 +129,11 @@ export async function attachAudio(input: {
     }
   }
 
-  // Replacing audio: remove the previous object so storage does not leak.
-  if (meeting.audioStoragePath) {
-    await getStorageProvider().delete(meeting.audioStoragePath).catch(() => undefined)
-  }
-
+  const storage = getStorageProvider()
   const path = meetingAudioPath(input.access.workspaceId, input.meetingId, file.extension)
-  await getStorageProvider().upload({ path, body: input.buffer, mimeType: file.mimeType })
-
-  await db
-    .update(meetings)
-    .set({
+  try {
+    await storage.upload({ path, body: input.buffer, mimeType: file.mimeType })
+    const [saved] = await db.update(meetings).set({
       audioStoragePath: path,
       audioMimeType: file.mimeType,
       audioSizeBytes: file.size,
@@ -146,8 +143,23 @@ export async function attachAudio(input: {
       transcriptionStatus: 'pending',
       transcriptionError: null,
       updatedAt: new Date(),
-    })
-    .where(and(eq(meetings.id, input.meetingId), eq(meetings.workspaceId, input.access.workspaceId)))
+    }).where(and(
+      eq(meetings.id, input.meetingId),
+      eq(meetings.workspaceId, input.access.workspaceId),
+      isNull(meetings.deletedAt),
+      meeting.audioStoragePath === null
+        ? isNull(meetings.audioStoragePath)
+        : eq(meetings.audioStoragePath, meeting.audioStoragePath),
+    )).returning({ id: meetings.id })
+    if (!saved) throw new AppError('conflict', 'La reunión cambió durante la subida. Recarga antes de reintentar.')
+  } catch (error) {
+    // Only this attempt's fresh object can be removed on failure.
+    await storage.delete(path).catch(() => undefined)
+    throw error
+  }
+  if (meeting.audioStoragePath) {
+    await storage.delete(meeting.audioStoragePath).catch(() => undefined)
+  }
 
   const minutes = durationSeconds ? durationSeconds / 60 : 0
   await recordUsage(input.access.workspaceId, 'meeting_recorded', 1, { userId: input.access.userId })

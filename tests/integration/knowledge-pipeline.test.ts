@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { closeDb, getDb } from '@/server/db/client'
-import { documentChunks, documents, noteChunks, notes } from '@/server/db/schema'
+import { documentChunks, documents, noteChunks } from '@/server/db/schema'
 import { createDocumentFromUpload, getDocument } from '@/server/documents'
 import { createNote, updateNote } from '@/server/notes'
 import { createProject, listProjects } from '@/server/projects'
@@ -111,7 +111,7 @@ describe('notes', () => {
     expect(hits.some((h) => h.kind === 'note' && h.resourceId === noteId)).toBe(true)
   })
 
-  it('re-indexes when the content changes, and not when it does not', async () => {
+  it('re-indexes content and title changes without retaining the old title', async () => {
     const { access } = await createTestTenant()
     const db = await getDb()
 
@@ -126,11 +126,11 @@ describe('notes', () => {
     expect(chunks.some((c) => c.content.includes('presupuesto'))).toBe(true)
     expect(chunks.some((c) => c.content.includes('Contenido inicial'))).toBe(false)
 
-    // Touching only the title leaves the embedding status alone.
-    const [before] = await db.select({ status: notes.embeddingStatus }).from(notes).where(eq(notes.id, noteId))
     await updateNote({ access, noteId, title: 'Renombrada' })
-    const [after] = await db.select({ status: notes.embeddingStatus }).from(notes).where(eq(notes.id, noteId))
-    expect(after?.status).toBe(before?.status)
+    await drainJobs()
+    const renamed = await db.select().from(noteChunks).where(eq(noteChunks.noteId, noteId))
+    expect(renamed.some(c => c.content.includes('Renombrada'))).toBe(true)
+    expect(renamed.some(c => c.content.includes('Original'))).toBe(false)
   })
 })
 

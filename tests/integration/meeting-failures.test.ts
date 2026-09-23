@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { closeDb, getDb } from '@/server/db/client'
 import { meetings } from '@/server/db/schema'
@@ -14,6 +14,7 @@ import { makeWavFixture } from '../fixtures/transcript'
 afterEach(() => {
   setTranscriptionProvider(null)
   setAIProvider(null)
+  vi.restoreAllMocks()
 })
 
 afterAll(async () => {
@@ -211,4 +212,71 @@ describe('audio replacement', () => {
     expect(await getStorageProvider().exists(first)).toBe(false)
     expect(await getStorageProvider().exists(second)).toBe(true)
   })
+})
+
+
+describe('audio preservation regressions', () => {
+  it.each([-1, NaN, Infinity])('rejects invalid audio duration %s before storing it', async durationSeconds => {
+    const { access } = await createTestTenant()
+    const meetingId = await createMeeting({ access })
+    const upload = vi.spyOn(getStorageProvider(), 'upload')
+    await expect(attachAudio({ access, meetingId, buffer: makeWavFixture(1), filename: 'audio.wav', declaredMime: 'audio/wav', durationSeconds })).rejects.toThrow('duración')
+    expect(upload).not.toHaveBeenCalled()
+    expect((await getMeeting(meetingId, access.workspaceId)).audioStoragePath).toBeNull()
+  })
+
+  it('keeps the existing audio and reference when replacement upload fails', async () => {
+    const { access } = await createTestTenant()
+    const meetingId = await createMeeting({ access, title: 'Preserve recording' })
+    const firstAudio = makeWavFixture(1)
+    await attachAudio({ access, meetingId, buffer: firstAudio, filename: 'old.wav', declaredMime: 'audio/wav' })
+    await drainJobs()
+    const before = await getMeeting(meetingId, access.workspaceId)
+    const storage = getStorageProvider()
+    vi.spyOn(storage, 'upload').mockRejectedValueOnce(new Error('Upload unavailable'))
+    await expect(attachAudio({ access, meetingId, buffer: makeWavFixture(2), filename: 'new.wav', declaredMime: 'audio/wav' })).rejects.toThrow('Upload unavailable')
+    expect((await getMeeting(meetingId, access.workspaceId)).audioStoragePath).toBe(before.audioStoragePath)
+    expect((await storage.read(before.audioStoragePath!)).body).toEqual(firstAudio)
+  })
+})
+
+
+it('preserves audio if saving the replacement reference fails', async () => {
+  const { access } = await createTestTenant()
+  const meetingId = await createMeeting({ access })
+  await attachAudio({ access, meetingId, buffer: makeWavFixture(1), filename: 'old.wav', declaredMime: 'audio/wav' })
+  await drainJobs()
+  const before = await getMeeting(meetingId, access.workspaceId)
+  const db = await getDb()
+  const storage = getStorageProvider()
+  const upload = vi.spyOn(storage, 'upload')
+  vi.spyOn(db, 'update').mockImplementationOnce(() => { throw new Error('Database unavailable') })
+  await expect(attachAudio({ access, meetingId, buffer: makeWavFixture(2), filename: 'new.wav', declaredMime: 'audio/wav' })).rejects.toThrow('Database unavailable')
+  expect((await getMeeting(meetingId, access.workspaceId)).audioStoragePath).toBe(before.audioStoragePath)
+  expect(await storage.exists(before.audioStoragePath!)).toBe(true)
+  expect(await storage.exists(upload.mock.calls[0]![0].path)).toBe(false)
+})
+
+it('does not overwrite a concurrently attached audio reference', async () => {
+  const { access } = await createTestTenant()
+  const meetingId = await createMeeting({ access })
+  const storage = getStorageProvider()
+  const originalUpload = storage.upload.bind(storage)
+  let release!: () => void
+  const bothUploading = new Promise<void>(resolve => { release = resolve })
+  let uploads = 0
+  const paths: string[] = []
+  vi.spyOn(storage, 'upload').mockImplementation(async input => {
+    const result = await originalUpload(input)
+    paths.push(input.path)
+    if (++uploads === 2) release()
+    await bothUploading
+    return result
+  })
+  const results = await Promise.allSettled([1, 2].map(seconds => attachAudio({ access, meetingId, buffer: makeWavFixture(seconds), filename: 'audio.wav', declaredMime: 'audio/wav' })))
+  expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1)
+  expect(results.filter(r => r.status === 'rejected')).toHaveLength(1)
+  const current = await getMeeting(meetingId, access.workspaceId)
+  for (const path of paths) expect(await storage.exists(path)).toBe(path === current.audioStoragePath)
+  await drainJobs()
 })

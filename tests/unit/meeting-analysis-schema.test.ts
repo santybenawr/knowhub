@@ -38,7 +38,7 @@ describe('evidence pruning', () => {
 
     const pruned = pruneAnalysisEvidence(analysis, new Set(['real']))
     expect(pruned.decisions[0]?.evidenceSegmentIds).toEqual(['real'])
-    expect(pruned.actionItems[0]?.evidenceSegmentIds).toEqual([])
+    expect(pruned.actionItems).toEqual([])
   })
 })
 

@@ -201,27 +201,33 @@ export async function answerQuestion(input: {
   }
 
   const { text } = await getAIProvider().generateText({ messages: context.messages, temperature: 0.1 })
-  const answer = text.trim() || NO_EVIDENCE_ANSWER
-  return {
-    answer,
-    citations: keepCitedOnly(answer, context.citations),
-    usedEvidence: true,
+  return validateCitedAnswer(text, context.citations)
+}
+
+/** Citation identity is checked here, not semantic entailment. */
+export function validateCitedAnswer(text: string, available: Citation[]) {
+  const answer = text.trim()
+  const citations = keepCitedOnly(answer, available)
+  const known = new Set(available.map(c => c.index))
+  const hasInvalid = [...answer.matchAll(/\[(\d+)\]/g)].some(m => !known.has(Number(m[1])))
+  if (!answer || citations.length === 0 || hasInvalid || answer === NO_EVIDENCE_ANSWER) {
+    return { answer: NO_EVIDENCE_ANSWER, citations: [], usedEvidence: false }
   }
+  return { answer, citations, usedEvidence: true }
 }
 
 /**
  * Only surface sources the answer actually referenced. Listing every retrieved
  * chunk would make the citation list look authoritative when half of it went
- * unused. If the model cited nothing, keep the full set so the user can still
- * check the reasoning.
+ * unused. An answer without valid references receives no attributed sources.
  */
 export function keepCitedOnly(answer: string, citations: Citation[]): Citation[] {
   const referenced = new Set<number>()
-  for (const match of answer.matchAll(/\[(\d{1,2})\]/g)) {
+  for (const match of answer.matchAll(/\[(\d+)\]/g)) {
     const n = Number(match[1])
     if (Number.isFinite(n)) referenced.add(n)
   }
-  if (referenced.size === 0) return citations
+  if (referenced.size === 0) return []
   const kept = citations.filter((c) => referenced.has(c.index))
-  return kept.length > 0 ? kept : citations
+  return kept
 }

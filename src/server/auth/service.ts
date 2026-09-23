@@ -1,6 +1,6 @@
 import { and, eq, gt } from 'drizzle-orm'
 import { getDb } from '@/server/db/client'
-import { userCredentials, users, workspaceMembers, workspaces } from '@/server/db/schema'
+import { sessions, userCredentials, users, workspaceMembers, workspaces } from '@/server/db/schema'
 import { generateToken, hashPassword, hashToken, verifyPassword } from '@/lib/crypto'
 import { AppError, validation } from '@/lib/errors'
 import { slugify } from '@/lib/text'
@@ -146,29 +146,22 @@ export async function createPasswordResetToken(email: string): Promise<string | 
 
 export async function resetPassword(token: string, newPassword: string): Promise<void> {
   const db = await getDb()
-  const rows = await db
-    .select({ userId: userCredentials.userId })
-    .from(userCredentials)
-    .where(
-      and(
-        eq(userCredentials.passwordResetTokenHash, hashToken(token)),
-        gt(userCredentials.passwordResetExpiresAt, new Date()),
-      ),
-    )
-    .limit(1)
-
-  const row = rows[0]
-  if (!row) throw validation('El enlace de recuperación no es válido o expiró.')
-
-  await db
-    .update(userCredentials)
-    .set({
-      passwordHash: await hashPassword(newPassword),
+  const passwordHash = await hashPassword(newPassword)
+  const userId = await db.transaction(async (tx) => {
+    // The predicate is checked by the UPDATE, including after a concurrent
+    // reset waits on this row. No separate read/consume race.
+    const [consumed] = await tx.update(userCredentials).set({
+      passwordHash,
       passwordResetTokenHash: null,
       passwordResetExpiresAt: null,
       updatedAt: new Date(),
-    })
-    .where(eq(userCredentials.userId, row.userId))
-
-  await recordAudit({ action: 'password_reset_completed', actorId: row.userId })
+    }).where(and(
+      eq(userCredentials.passwordResetTokenHash, hashToken(token)),
+      gt(userCredentials.passwordResetExpiresAt, new Date()),
+    )).returning({ userId: userCredentials.userId })
+    if (!consumed) throw validation('El enlace de recuperación no es válido o expiró.')
+    await tx.delete(sessions).where(eq(sessions.userId, consumed.userId))
+    return consumed.userId
+  })
+  await recordAudit({ action: 'password_reset_completed', actorId: userId })
 }

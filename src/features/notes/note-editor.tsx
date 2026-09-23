@@ -56,23 +56,30 @@ export function NoteEditor({
   const [title, setTitle] = React.useState(initialTitle)
   const [content, setContent] = React.useState(initialContent)
   const [projectId, setProjectId] = React.useState(initialProjectId ?? '')
-  const [state, setState] = React.useState<SaveState>('idle')
+  const [state, setState] = React.useState<SaveState>(noteId ? 'saved' : 'idle')
+  const [navigating, setNavigating] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = React.useState(false)
   const [pending, startTransition] = React.useTransition()
 
   const [currentId, setCurrentId] = React.useState(noteId)
+  const savedId = React.useRef(noteId)
+  const createdId = React.useRef<string | null>(null)
+  const saving = React.useRef(false)
+  const latestSave = React.useRef<(() => Promise<void>) | null>(null)
   const dirty = React.useRef(false)
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const save = React.useCallback(async () => {
-    if (!dirty.current) return
+    if (!dirty.current || saving.current) return
+    saving.current = true
     dirty.current = false
     setState('saving')
     setError(null)
 
+    let succeeded = false
     try {
-      if (!currentId) {
+      if (!savedId.current) {
         if (!onCreate) return
         if (!title.trim() && !content.trim()) {
           setState('idle')
@@ -84,13 +91,13 @@ export function NoteEditor({
           setError(result.error)
           return
         }
+        savedId.current = result.data.noteId
+        createdId.current = result.data.noteId
         setCurrentId(result.data.noteId)
-        // Point the URL at the real note without remounting the editor.
-        window.history.replaceState(null, '', `/notes/${result.data.noteId}`)
       } else {
         if (!onUpdate) return
         const result = await onUpdate({
-          noteId: currentId,
+          noteId: savedId.current,
           title,
           content,
           projectId: projectId || null,
@@ -101,12 +108,31 @@ export function NoteEditor({
           return
         }
       }
-      setState('saved')
+      succeeded = true
+      setState(dirty.current ? 'idle' : 'saved')
     } catch {
       setState('error')
       setError('No pudimos guardar la nota.')
+    } finally {
+      saving.current = false
+      if (!succeeded) dirty.current = true
+      // Serialize writes; typing during a request must save the latest state
+      // after it completes, and must never create a second note.
+      if (succeeded && dirty.current) {
+        if (timer.current) clearTimeout(timer.current)
+        timer.current = setTimeout(() => void latestSave.current?.(), 0)
+      } else if (succeeded && createdId.current) {
+        // Switching routes before queued edits finish can remount this editor
+        // with the first version. Navigate only after the last write commits.
+        const destination = createdId.current
+        createdId.current = null
+        setNavigating(true)
+        router.replace(`/notes/${destination}`)
+      }
     }
-  }, [content, currentId, onCreate, onUpdate, projectId, title])
+  }, [content, onCreate, onUpdate, projectId, router, title])
+
+  React.useEffect(() => { latestSave.current = save }, [save])
 
   React.useEffect(() => {
     if (!dirty.current) return
@@ -134,10 +160,9 @@ export function NoteEditor({
               dirty.current = true
               startTransition(async () => {
                 await save()
-                router.refresh()
               })
             }}
-            loading={pending}
+            loading={pending || navigating}
           >
             Guardar ahora
           </Button>
@@ -155,6 +180,7 @@ export function NoteEditor({
       </div>
 
       <Input
+        disabled={navigating}
         value={title}
         onChange={(event) => {
           setTitle(event.target.value)
@@ -167,6 +193,7 @@ export function NoteEditor({
 
       {projects.length > 0 ? (
         <Select
+          disabled={navigating}
           value={projectId}
           onChange={(event) => {
             setProjectId(event.target.value)
@@ -185,6 +212,7 @@ export function NoteEditor({
       ) : null}
 
       <Textarea
+        disabled={navigating}
         value={content}
         onChange={(event) => {
           setContent(event.target.value)

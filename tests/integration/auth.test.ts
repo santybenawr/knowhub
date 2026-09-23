@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import { closeDb, getDb } from '@/server/db/client'
-import { userCredentials, users, workspaceMembers, workspaces } from '@/server/db/schema'
+import { sessions, userCredentials, users, workspaceMembers, workspaces } from '@/server/db/schema'
 import {
   createPasswordResetToken,
   ensurePersonalWorkspace,
@@ -9,7 +9,7 @@ import {
   resetPassword,
   signup,
 } from '@/server/auth/service'
-import { hashPassword, verifyPassword } from '@/lib/crypto'
+import { hashPassword, hashToken, verifyPassword } from '@/lib/crypto'
 import { consumeRateLimit, windowStartFor } from '@/server/rate-limit'
 import { drainJobs } from '@/server/jobs'
 
@@ -159,5 +159,28 @@ describe('rate limiting', () => {
   it('snaps windows to a fixed grid', () => {
     const now = new Date('2026-08-20T12:07:33.000Z').getTime()
     expect(windowStartFor(300, now).toISOString()).toBe('2026-08-20T12:05:00.000Z')
+  })
+})
+
+
+describe('reset security regressions', () => {
+  it('revokes all previous sessions but preserves other accounts', async () => {
+    const email = `revoke-${Date.now()}@knowhub.test`
+    const user = await signup({ name: 'Reset', email, password: PASSWORD })
+    const other = await signup({ name: 'Other', email: `other-${Date.now()}@knowhub.test`, password: PASSWORD })
+    const db = await getDb()
+    await db.insert(sessions).values([user, user, other].map((u, i) => ({ userId: u.userId, tokenHash: hashToken(`session-${i}-${Date.now()}`), expiresAt: new Date(Date.now() + 60000) })))
+    const token = await createPasswordResetToken(email)
+    await resetPassword(token!, 'new-password-123')
+    expect(await db.select().from(sessions).where(eq(sessions.userId, user.userId))).toHaveLength(0)
+    expect(await db.select().from(sessions).where(eq(sessions.userId, other.userId))).toHaveLength(1)
+  })
+  it('accepts a reset token only once under concurrent requests', async () => {
+    const email = `race-${Date.now()}@knowhub.test`
+    await signup({ name: 'Race', email, password: PASSWORD })
+    const token = await createPasswordResetToken(email)
+    const attempts = await Promise.allSettled([resetPassword(token!, 'first-password-123'), resetPassword(token!, 'second-password-123')])
+    expect(attempts.filter(x => x.status === 'fulfilled')).toHaveLength(1)
+    expect(attempts.filter(x => x.status === 'rejected')).toHaveLength(1)
   })
 })

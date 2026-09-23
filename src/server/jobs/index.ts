@@ -114,13 +114,16 @@ export async function enqueueAndRun(input: {
 
 async function runJobSafely(jobId: string): Promise<void> {
   try {
-    await runJob(jobId)
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      if (await runJob(jobId) !== 'retry') return
+      await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)))
+    }
   } catch (err) {
     console.error('[knowhub] job runner crashed', { jobId, err })
   }
 }
 
-export async function runJob(jobId: string): Promise<'completed' | 'failed' | 'skipped'> {
+export async function runJob(jobId: string): Promise<'completed' | 'failed' | 'skipped' | 'retry'> {
   const db = await getDb()
 
   // Atomic claim: only one runner can move a job out of `pending`.
@@ -174,7 +177,8 @@ export async function runJob(jobId: string): Promise<'completed' | 'failed' | 's
       })
       .where(eq(aiJobs.id, job.id))
     console.error('[knowhub] job failed', { jobId: job.id, type: job.type, retryable, message })
-    return retryable ? 'skipped' : 'failed'
+    // A real attempted job must not look like an empty queue to drainJobs.
+    return retryable ? 'retry' : 'failed'
   }
 }
 

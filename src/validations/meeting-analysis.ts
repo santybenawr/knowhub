@@ -78,13 +78,16 @@ export function pruneAnalysisEvidence(
   analysis: MeetingAnalysis,
   validSegmentIds: Set<string>,
 ): MeetingAnalysis {
-  const keep = (ids: string[]) => ids.filter((id) => validSegmentIds.has(id))
+  const keep = (ids: string[]) => [...new Set(ids.filter((id) => validSegmentIds.has(id)))]
+  const supported = <T extends { evidenceSegmentIds: string[] }>(items: T[]) =>
+    items.map(item => ({ ...item, evidenceSegmentIds: keep(item.evidenceSegmentIds) }))
+      .filter(item => item.evidenceSegmentIds.length > 0)
   return {
     ...analysis,
-    decisions: analysis.decisions.map((d) => ({ ...d, evidenceSegmentIds: keep(d.evidenceSegmentIds) })),
-    actionItems: analysis.actionItems.map((a) => ({ ...a, evidenceSegmentIds: keep(a.evidenceSegmentIds) })),
-    keyPoints: analysis.keyPoints.map((k) => ({ ...k, evidenceSegmentIds: keep(k.evidenceSegmentIds) })),
-    openQuestions: analysis.openQuestions.map((q) => ({ ...q, evidenceSegmentIds: keep(q.evidenceSegmentIds) })),
-    importantDates: analysis.importantDates.map((d) => ({ ...d, evidenceSegmentIds: keep(d.evidenceSegmentIds) })),
+    decisions: supported(analysis.decisions),
+    actionItems: supported(analysis.actionItems),
+    keyPoints: supported(analysis.keyPoints),
+    openQuestions: supported(analysis.openQuestions),
+    importantDates: supported(analysis.importantDates),
   }
 }
