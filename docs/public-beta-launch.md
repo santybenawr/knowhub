@@ -1,8 +1,10 @@
 # Lanzamiento de la beta pública
 
-Estado al 22/10/2026: infraestructura creada y validación final del despliegue
-en curso. Mantener protección de Vercel hasta validar la versión corregida.
-Dirección asignada: `https://knowhub-app-sacramented.vercel.app`.
+Estado al 22/10/2026: **beta publicada y recorrido completo remoto aprobado**.
+Dirección pública: https://knowhub-app-sacramented.vercel.app
+Despliegue `dpl_3ZjLZVzPUPAMVLLfvX729k1m8Zod`, código `a9931aa`, Next 16.4.1.
+Login y health responden 200 sin sesión Vercel. El health confirma PostgreSQL
+y Vercel Blob; IA/transcripción siguen en modo extractivo/mock explícito.
 
 ## Alcance
 
@@ -47,8 +49,9 @@ La base remota arranca vacía, sin la cuenta demo de contraseña pública.
    restringe acceso directo de anon/authenticated a las tablas de la app y la
    0005 retira también los permisos explícitos de la función interna.
 6. Desplegar el proyecto con `vercel deploy --prod --skip-domain --scope sacramented`.
-   Verificar el entorno y la conexión a datos. La protección `preview` permite
-   acceso público a producción y conserva el login obligatorio de la app.
+   Verificar el entorno y la conexión a datos. Se usa protección estándar
+   `prod_deployment_urls_and_all_previews`: el dominio público de producción es
+   accesible y los enlaces de despliegues individuales/previews quedan protegidos.
 7. Ejecutar `KNOWHUB_BETA_URL=https://URL pnpm test:beta` sobre el despliegue y
    comprobar PostgreSQL, almacenamiento remoto, aislamiento y reinicio de sesión.
    La prueba crea cuentas QA con contraseñas aleatorias y contenido ficticio.
@@ -60,14 +63,17 @@ La base remota arranca vacía, sin la cuenta demo de contraseña pública.
 - Lint, tipos y compilaciones de Next completados.
 - Suite general: 221 pruebas aprobadas en 30 archivos, incluida la prueba SQL
   de denegación de acceso directo para los roles `anon` y `authenticated`.
-- E2E existentes: 8/8 aprobados.
+- E2E existentes: 8/8 aprobados también con Next 16.4.1.
 - Perfil beta: recorrido completo aprobado con dos cuentas independientes,
   guardado tras recarga/login, documento original, transcripción, citas y 404
-  entre cuentas. Repetir contra el despliegue final antes de entregar la URL.
+  entre cuentas. El mismo recorrido pasó en el dominio público con dos cuentas
+  QA independientes: 1/1, 18,5 segundos. Se verificó el archivo original remoto.
 - Infraestructura real: 25 tablas con RLS y sin SELECT para anon/authenticated;
   función de membresía sin EXECUTE para esos roles. Base inicialmente con cero usuarios.
 - Blob real: subida, lectura y URL firmada aprobadas; acceso sin firma y ruta
   modificada rechazados con 403. Se eliminó únicamente el archivo de esta prueba.
+- Consulta de logs de errores del despliegue tras la prueba: sin entradas devueltas.
+  Es una comprobación puntual; no hay monitorización continua configurada.
 
 ## Dependencias
 
