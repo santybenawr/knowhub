@@ -1,5 +1,6 @@
 import { FlaskConical } from 'lucide-react'
 import { getProviderStatus } from '@/config/env'
+import { isPublicBeta } from '@/lib/release'
 
 /**
  * §78/§90 — When the deterministic local providers are in play, say so on the
@@ -7,6 +8,14 @@ import { getProviderStatus } from '@/config/env'
  * every other honesty guarantee in this product worthless.
  */
 export function ProviderNotice() {
+  if (isPublicBeta()) {
+    return (
+      <div className="rounded-card border border-warning/40 bg-warning-soft p-4 text-sm">
+        <p className="font-medium text-ink">Beta pública</p>
+        <p className="mt-1 text-ink-muted">Tus documentos, notas y transcripciones se guardan en tu cuenta. La búsqueda y las respuestas usan coincidencias de texto; la IA y la transcripción automática de audio llegarán después. Revisa siempre las fuentes.</p>
+      </div>
+    )
+  }
   const status = getProviderStatus()
   const mockedAi = status.ai === 'mock'
   const mockedTranscription = status.transcription === 'mock'

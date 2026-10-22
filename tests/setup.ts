@@ -8,6 +8,9 @@
  */
 Object.assign(process.env, {
   NODE_ENV: 'test',
+  VERCEL: '0',
+  NEXT_PUBLIC_KNOWHUB_BETA: 'false',
+  DATABASE_AUTO_MIGRATE: 'true',
   PGLITE_DATA_DIR: 'memory://',
   AI_PROVIDER: 'mock',
   TRANSCRIPTION_PROVIDER: 'mock',

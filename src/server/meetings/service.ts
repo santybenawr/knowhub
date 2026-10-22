@@ -21,6 +21,7 @@ import { formatDateEs } from '@/lib/time'
 import { parseTranscriptText } from '@/server/transcription'
 import type { WorkspaceAccess } from '@/server/permissions'
 import { persistTranscription } from './transcript'
+import { isPublicBeta } from '@/lib/release'
 
 /**
  * §25/§86 — Meeting lifecycle.
@@ -41,6 +42,9 @@ export async function createMeeting(input: {
   source?: MeetingSource
   description?: string | null
 }): Promise<string> {
+  if (isPublicBeta() && input.source !== 'transcript_import') {
+    throw validation('Esta beta admite reuniones mediante una transcripción pegada.')
+  }
   const db = await getDb()
   const meetingDate = input.meetingDate ?? new Date()
   // §58 — the title is optional; the date is a better default than "Untitled".
@@ -79,6 +83,7 @@ export async function createMeeting(input: {
 }
 
 export async function markRecordingStarted(meetingId: string, access: WorkspaceAccess): Promise<void> {
+  if (isPublicBeta()) throw validation('La grabación de audio todavía no está disponible en esta beta.')
   const db = await getDb()
   await db
     .update(meetings)
@@ -103,6 +108,7 @@ export async function attachAudio(input: {
   declaredMime: string
   durationSeconds?: number | null
 }): Promise<void> {
+  if (isPublicBeta()) throw validation('Importa una transcripción: la carga de audio no está disponible en esta beta.')
   const db = await getDb()
   const meeting = await getMeeting(input.meetingId, input.access.workspaceId)
   const file = validateAudioFile({

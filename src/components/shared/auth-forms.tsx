@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import type { ActionResult } from '@/lib/action-result'
+import { isPublicBeta } from '@/lib/release'
 import {
   forgotPasswordAction,
   loginAction,
@@ -76,6 +77,7 @@ export function SignupForm() {
       </Field>
 
       <SubmitButton>Crear cuenta</SubmitButton>
+      {isPublicBeta() ? <p className="text-sm text-ink-muted">Beta gratuita. Guarda tu contraseña: todavía no hay recuperación por correo. Tu biblioteca es privada y las invitaciones a equipos aún no están disponibles.</p> : null}
 
       <p className="text-center text-sm text-ink-muted">
         ¿Ya tienes cuenta?{' '}

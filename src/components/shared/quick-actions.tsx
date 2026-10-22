@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { FileText, Mic, NotebookPen, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { isPublicBeta } from '@/lib/release'
 
 /**
  * §45/§50 — The four things KnowHub is for. Recording leads because it is the
@@ -39,9 +40,9 @@ export function QuickActions({ className }: { className?: string }) {
           />
           <div>
             <p className={cn('font-medium', action.featured ? 'text-brand-ink' : 'text-ink')}>
-              {action.label}
+              {isPublicBeta() && action.href === '/meetings/new' ? 'Importar reunión' : action.label}
             </p>
-            <p className="text-xs text-ink-muted">{action.description}</p>
+            <p className="text-xs text-ink-muted">{isPublicBeta() && action.href === '/meetings/new' ? 'Pega una transcripción' : action.description}</p>
           </div>
         </Link>
       ))}

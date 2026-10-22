@@ -87,6 +87,9 @@ export async function inviteMember(input: {
   email: string
   role: WorkspaceRole
 }): Promise<{ token: string }> {
+  if (process.env.NEXT_PUBLIC_KNOWHUB_BETA === 'true') {
+    throw validation('Las invitaciones estarán disponibles cuando habilitemos la verificación de correo.')
+  }
   const db = await getDb()
   if (!canAssignRole(input.access.role, input.role)) {
     throw forbidden('No puedes asignar un rol igual o superior al tuyo.')
@@ -123,6 +126,9 @@ export async function inviteMember(input: {
 }
 
 export async function acceptInvitation(token: string, userId: string): Promise<string> {
+  if (process.env.NEXT_PUBLIC_KNOWHUB_BETA === 'true') {
+    throw validation('Las invitaciones no están disponibles en esta beta.')
+  }
   const db = await getDb()
   return db.transaction(async (tx) => {
     const [invitation] = await tx.select().from(workspaceInvitations).where(and(

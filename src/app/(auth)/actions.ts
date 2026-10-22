@@ -21,6 +21,7 @@ import { trackEvent } from '@/server/analytics'
 import { fail, ok, type ActionResult } from '@/lib/action-result'
 import { toUserMessage } from '@/lib/errors'
 import { ensureJobHandlers } from '@/server/jobs/register'
+import { isPublicBeta } from '@/lib/release'
 
 ensureJobHandlers()
 
@@ -113,6 +114,7 @@ export async function forgotPasswordAction(
   _prev: ActionResult<{ devLink?: string }> | null,
   formData: FormData,
 ): Promise<ActionResult<{ devLink?: string }>> {
+  if (isPublicBeta()) return fail('La recuperación por correo todavía no está disponible en esta beta.')
   const parsed = forgotPasswordSchema.safeParse({ email: formData.get('email') })
   if (!parsed.success) return fail('Ingresa un correo válido.', fieldErrorsOf(parsed.error))
 

@@ -44,6 +44,8 @@
     ".next",
     "e2e-results",
     "marketing/.next",
-    "marketing/out"
+    "marketing/out",
+    "demo-web/.next",
+    "demo-web/out"
   ]
 }

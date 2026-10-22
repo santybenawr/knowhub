@@ -6,6 +6,7 @@ import { FileText, FolderKanban, Mic, NotebookPen, Search, Sparkles } from 'luci
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/field'
 import { cn } from '@/lib/utils'
+import { isPublicBeta } from '@/lib/release'
 
 type Command = {
   id: string
@@ -46,7 +47,7 @@ export function CommandPalette({ projects }: { projects: Array<{ id: string; nam
     const base: Command[] = [
       { id: 'search', label: 'Buscar', hint: 'En toda la biblioteca', icon: <Search className="size-4" />, run: () => go('/search') },
       { id: 'ask', label: 'Preguntar a KnowHub', icon: <Sparkles className="size-4" />, run: () => go('/ask') },
-      { id: 'record', label: 'Grabar reunión', icon: <Mic className="size-4" />, run: () => go('/meetings/new') },
+      { id: 'record', label: isPublicBeta() ? 'Importar reunión' : 'Grabar reunión', icon: <Mic className="size-4" />, run: () => go('/meetings/new') },
       { id: 'upload', label: 'Subir documento', icon: <FileText className="size-4" />, run: () => go('/library?upload=1') },
       { id: 'note', label: 'Crear nota', icon: <NotebookPen className="size-4" />, run: () => go('/notes/new') },
     ]

@@ -212,6 +212,37 @@ describe('multi-source retrieval', () => {
     expect(answer.citations).toHaveLength(0)
     expect(answer.answer).toContain('No encontré suficiente información')
   })
+
+  it('refuses unrelated questions even when the library contains indexed material', async () => {
+    const { access } = await createTestTenant()
+    await createDocumentFromUpload({
+      access,
+      buffer: Buffer.from(CANVAS_DOC, 'utf8'),
+      filename: 'canvas.md',
+      declaredMime: 'text/markdown',
+      title: 'Modelo Canvas',
+    })
+    await createNote({
+      access,
+      title: 'Ideas para el proyecto final',
+      content:
+        'El proyecto final puede combinar el modelo Canvas con los cuatro principios administrativos. ' +
+        'La propuesta de valor se conecta con la planeación, y la estructura de costos con el control. ' +
+        'Falta decidir si el caso de estudio será una empresa real o una hipotética.',
+    })
+    await drainJobs()
+
+    for (const question of ['¿Cuál es la temperatura de Neptuno?', '¿Cuál es la capital de Mongolia?']) {
+      const answer = await answerQuestion({
+        workspaceId: access.workspaceId,
+        question,
+        scope: { type: 'workspace' },
+      })
+      expect(answer.usedEvidence, question).toBe(false)
+      expect(answer.citations, question).toHaveLength(0)
+      expect(answer.answer, question).toContain('No encontré suficiente información')
+    }
+  })
 })
 
 /**

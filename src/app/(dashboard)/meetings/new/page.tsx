@@ -6,6 +6,7 @@ import { listProjects } from '@/server/projects'
 import { formatDateEs } from '@/lib/time'
 import { NewMeetingFlow } from '@/features/meetings/new-meeting-flow'
 import { ProviderNotice } from '@/components/shared/provider-notice'
+import { isPublicBeta } from '@/lib/release'
 import {
   acceptRecordingConsentAction,
   createMeetingAction,
@@ -30,7 +31,7 @@ export default async function NewMeetingPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink">Nueva reunión</h1>
         <p className="mt-1 text-sm text-ink-muted">
-          Graba, sube una grabación o importa una transcripción existente.
+          {isPublicBeta() ? 'Pega la transcripción de tu reunión para organizarla y consultarla.' : 'Graba, sube una grabación o importa una transcripción existente.'}
         </p>
       </div>
 

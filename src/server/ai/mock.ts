@@ -114,27 +114,14 @@ export class MockAIProvider implements AIProvider {
       .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
 
-    // Retrieval already judged these chunks relevant. When the question shares
-    // no vocabulary with them (a paraphrase, a synonym), quoting the top-ranked
-    // evidence is the honest answer — claiming "no information" here would
-    // contradict the layer that just found some.
-    const candidates =
-      scored.length > 0
-        ? scored
-        : evidence
-            .flatMap((item) =>
-              splitSentences(item.content)
-                .slice(0, 2)
-                .map((sentence) => ({ sentence, index: item.index, score: 0.01 })),
-            )
-            .slice(0, 3)
+    // Hash collisions can retrieve unrelated chunks. This extractive provider
+    // cannot establish semantic relevance without shared terms, so abstain
+    // rather than attach authoritative-looking citations to unrelated text.
+    if (scored.length === 0) return NO_EVIDENCE_ANSWER
 
-    if (candidates.length === 0) return NO_EVIDENCE_ANSWER
-
-    const scoredCandidates = candidates
-    const chosen: typeof scoredCandidates = []
+    const chosen: typeof scored = []
     const usedIndexes = new Set<number>()
-    for (const candidate of scoredCandidates) {
+    for (const candidate of scored) {
       if (chosen.length >= 3) break
       if (usedIndexes.has(candidate.index) && chosen.length >= 2) continue
       chosen.push(candidate)

@@ -10,6 +10,7 @@ import { ResourceCard } from '@/components/shared/resource-card'
 import { LibraryFilters } from '@/features/library/library-filters'
 import { UploadDialog } from '@/features/library/upload-dialog'
 import type { ResourceKind } from '@/server/search/types'
+import { isPublicBeta } from '@/lib/release'
 
 export const metadata: Metadata = { title: 'Biblioteca' }
 
@@ -65,11 +66,11 @@ export default async function LibraryPage({
         <EmptyState
           icon={<FileStack className="size-6" />}
           title="Aquí vivirá todo tu conocimiento."
-          description="Sube un documento, escribe una nota o graba una reunión. Todo queda buscable y citable."
+          description={isPublicBeta() ? 'Sube un documento, escribe una nota o importa una transcripción.' : 'Sube un documento, escribe una nota o graba una reunión. Todo queda buscable y citable.'}
           action={
             <div className="flex flex-wrap justify-center gap-2">
               <Button asChild>
-                <Link href="/meetings/new">Grabar reunión</Link>
+                <Link href="/meetings/new">{isPublicBeta() ? 'Importar reunión' : 'Grabar reunión'}</Link>
               </Button>
               <Button asChild variant="secondary">
                 <Link href="/notes/new">Crear nota</Link>

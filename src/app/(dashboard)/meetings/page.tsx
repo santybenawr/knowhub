@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ResourceCard } from '@/components/shared/resource-card'
 import { MeetingFilters } from '@/features/meetings/meeting-filters'
+import { isPublicBeta } from '@/lib/release'
 
 export const metadata: Metadata = { title: 'Reuniones' }
 
@@ -33,12 +34,12 @@ export default async function MeetingsPage({
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink">Reuniones</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Cada conversación, con sus decisiones y su audio original.
+            {isPublicBeta() ? 'Tus transcripciones, con sus decisiones y fuentes.' : 'Cada conversación, con sus decisiones y su audio original.'}
           </p>
         </div>
         <Button asChild>
           <Link href="/meetings/new">
-            <Mic /> Grabar reunión
+            <Mic /> {isPublicBeta() ? 'Importar reunión' : 'Grabar reunión'}
           </Link>
         </Button>
       </div>
@@ -54,10 +55,10 @@ export default async function MeetingsPage({
         <EmptyState
           icon={<Mic className="size-6" />}
           title="Tus conversaciones importantes pueden convertirse en conocimiento."
-          description="Graba una reunión o sube una grabación para comenzar."
+          description={isPublicBeta() ? 'Pega una transcripción para comenzar.' : 'Graba una reunión o sube una grabación para comenzar.'}
           action={
             <Button asChild>
-              <Link href="/meetings/new">Grabar reunión</Link>
+              <Link href="/meetings/new">{isPublicBeta() ? 'Importar reunión' : 'Grabar reunión'}</Link>
             </Button>
           }
         />

@@ -16,6 +16,7 @@ import { Field, Input, Select } from '@/components/ui/field'
 import { useToast } from '@/components/ui/toast'
 import { formatBytes } from '@/lib/time'
 import { cn } from '@/lib/utils'
+import { documentUploadLimitMb } from '@/lib/release'
 
 const ACCEPTED = '.pdf,.docx,.txt,.md'
 
@@ -52,6 +53,10 @@ export function UploadDialog({
 
   const upload = () => {
     if (!file) return
+    if (file.size > documentUploadLimitMb() * 1024 * 1024) {
+      setError(`El archivo supera el máximo de ${documentUploadLimitMb()} MB.`)
+      return
+    }
     setUploading(true)
     setError(null)
     setProgress(0)
@@ -107,7 +112,7 @@ export function UploadDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Subir documento</DialogTitle>
-          <DialogDescription>PDF, Word (.docx), Markdown o texto plano.</DialogDescription>
+          <DialogDescription>PDF, Word (.docx), Markdown o texto plano. Máximo {documentUploadLimitMb()} MB por archivo.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">

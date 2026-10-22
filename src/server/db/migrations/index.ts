@@ -7,6 +7,8 @@ import * as m_0000_init from './0000_init'
 import * as m_0001_vector_indexes from './0001_vector_indexes'
 import * as m_0002_rls from './0002_rls'
 import * as m_0003_spanish_fts from './0003_spanish_fts'
+import * as m_0004_private_app_tables from './0004_private_app_tables'
+import * as m_0005_private_membership_function from './0005_private_membership_function'
 
 export type Migration = { id: string; sql: string; postgresOnly: boolean }
 
@@ -15,4 +17,6 @@ export const migrations: Migration[] = [
   m_0001_vector_indexes,
   m_0002_rls,
   m_0003_spanish_fts,
+  m_0004_private_app_tables,
+  m_0005_private_membership_function,
 ]

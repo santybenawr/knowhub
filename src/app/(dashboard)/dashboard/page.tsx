@@ -13,6 +13,7 @@ import { QuickActions } from '@/components/shared/quick-actions'
 import { ResourceCard } from '@/components/shared/resource-card'
 import { UsagePanel } from '@/components/shared/usage-panel'
 import { ProviderNotice } from '@/components/shared/provider-notice'
+import { isPublicBeta } from '@/lib/release'
 
 export const metadata: Metadata = { title: 'Inicio' }
 
@@ -49,10 +50,10 @@ export default async function DashboardPage() {
       {isEmpty ? (
         <EmptyState
           title="Tu biblioteca está esperando su primer recuerdo."
-          description="Graba una reunión, sube un documento o escribe una nota. KnowHub se encarga de organizarlo y de traerlo de vuelta cuando lo necesites."
+          description={isPublicBeta() ? 'Importa una transcripción, sube un documento o escribe una nota para empezar tu biblioteca.' : 'Graba una reunión, sube un documento o escribe una nota. KnowHub se encarga de organizarlo y de traerlo de vuelta cuando lo necesites.'}
           action={
             <Button asChild>
-              <Link href="/meetings/new">Grabar mi primera reunión</Link>
+              <Link href="/meetings/new">{isPublicBeta() ? 'Importar mi primera reunión' : 'Grabar mi primera reunión'}</Link>
             </Button>
           }
         />

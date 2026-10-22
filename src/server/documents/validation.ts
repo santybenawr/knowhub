@@ -1,6 +1,7 @@
 import { getServerEnv } from '@/config/env'
 import { unsupported, validation } from '@/lib/errors'
 import { formatBytes } from '@/lib/time'
+import { documentUploadLimitMb, isPublicBeta } from '@/lib/release'
 
 /**
  * §125/§196 — File validation.
@@ -71,7 +72,8 @@ export function validateDocumentFile(input: {
   filename: string
   declaredMime: string
 }): ValidatedFile {
-  const maxBytes = getServerEnv().MAX_UPLOAD_MB * 1024 * 1024
+  const maxMb = isPublicBeta() ? Math.min(getServerEnv().MAX_UPLOAD_MB, documentUploadLimitMb()) : getServerEnv().MAX_UPLOAD_MB
+  const maxBytes = maxMb * 1024 * 1024
   if (input.buffer.byteLength === 0) throw validation('El archivo está vacío.')
   if (input.buffer.byteLength > maxBytes) {
     throw validation(`El archivo supera el máximo de ${formatBytes(maxBytes)}.`)

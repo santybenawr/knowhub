@@ -19,3 +19,10 @@ marketing/public/
 marketing/.next/
 marketing/out/
 .vercel/
+
+# Public interactive demo (generated static export)
+/demo-web/.next/
+/demo-web/out/
+/demo-web/next-env.d.ts
+.vercel
+.env*

@@ -1,6 +1,7 @@
 import { getServerEnv } from '@/config/env'
 import { LocalStorageProvider } from './local'
 import { SupabaseStorageProvider } from './supabase'
+import { VercelBlobStorageProvider } from './vercel-blob'
 import type { StorageProvider } from './types'
 
 export * from './types'
@@ -14,6 +15,8 @@ export function getStorageProvider(): StorageProvider {
   const env = getServerEnv()
   cached = env.STORAGE_PROVIDER === 'supabase'
     ? SupabaseStorageProvider.fromEnv()
+    : env.STORAGE_PROVIDER === 'vercel-blob'
+      ? VercelBlobStorageProvider.fromEnv()
     : new LocalStorageProvider(env.STORAGE_LOCAL_DIR)
   return cached
 }

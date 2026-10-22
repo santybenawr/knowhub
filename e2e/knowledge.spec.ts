@@ -45,6 +45,15 @@ test('a new account can capture a note and recall it with a citation', async ({ 
   // §113 — the citation opens the evidence.
   await source.click()
   await expect(page).toHaveURL(/\/notes\/[0-9a-f-]{36}/)
+
+  // A populated library must still abstain on a topic it does not contain.
+  await page.goto('/ask')
+  await page.getByLabel('Tu pregunta').fill('¿Cuál es la temperatura de Neptuno?')
+  await page.getByRole('button', { name: 'Preguntar' }).click()
+  await expect(
+    page.getByText('No encontré suficiente información en tu biblioteca para responder con seguridad.'),
+  ).toBeVisible()
+  await expect(page.getByRole('link', { name: /Ver fuente/ })).toHaveCount(0)
 })
 
 /**

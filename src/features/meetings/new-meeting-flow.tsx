@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import type { ActionResult } from '@/lib/action-result'
 import { RecorderPanel } from './recording/recorder-panel'
+import { isPublicBeta } from '@/lib/release'
 
 type Mode = 'record' | 'upload' | 'import'
 
@@ -42,7 +43,7 @@ export function NewMeetingFlow({
   const router = useRouter()
   const { notify } = useToast()
 
-  const [mode, setMode] = React.useState<Mode>('record')
+  const [mode, setMode] = React.useState<Mode>(isPublicBeta() ? 'import' : 'record')
   const [meetingId, setMeetingId] = React.useState<string | null>(null)
   const [meetingTitle, setMeetingTitle] = React.useState('')
   const [consented, setConsented] = React.useState(hasConsent)
@@ -133,7 +134,7 @@ export function NewMeetingFlow({
               { id: 'upload', icon: FileAudio, label: 'Subir grabación', hint: 'webm, m4a, mp3, wav' },
               { id: 'import', icon: FileText, label: 'Importar transcripción', hint: 'Texto con tiempos' },
             ] as const
-          ).map((option) => (
+          ).filter((option) => !isPublicBeta() || option.id === 'import').map((option) => (
             <button
               key={option.id}
               type="button"

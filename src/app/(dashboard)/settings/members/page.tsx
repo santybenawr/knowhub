@@ -4,6 +4,7 @@ import { listMembers } from '@/server/workspaces'
 import { can, ROLE_LABELS } from '@/server/permissions'
 import { MembersManager } from '@/features/settings/members-manager'
 import { changeMemberRoleAction, inviteMemberAction, removeMemberAction } from '../actions'
+import { isPublicBeta } from '@/lib/release'
 
 export const metadata: Metadata = { title: 'Miembros' }
 
@@ -21,6 +22,7 @@ export default async function MembersPage() {
         </p>
       </div>
 
+      {isPublicBeta() ? <p className="text-sm text-ink-muted">En esta beta cada persona usa su cuenta privada. Las invitaciones a equipos se habilitarán junto con la verificación de correo.</p> : null}
       <MembersManager
         members={members.map((member) => ({
           userId: member.userId,
@@ -31,7 +33,7 @@ export default async function MembersPage() {
           isSelf: member.userId === user.id,
         }))}
         currentRole={access.role}
-        canManage={can(access.role, 'members:manage')}
+        canManage={!isPublicBeta() && can(access.role, 'members:manage')}
         onInvite={inviteMemberAction}
         onChangeRole={changeMemberRoleAction}
         onRemove={removeMemberAction}

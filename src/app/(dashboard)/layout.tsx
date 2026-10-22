@@ -4,6 +4,8 @@ import { AppShell } from '@/components/shared/app-shell'
 import { CommandPalette } from '@/components/shared/command-palette'
 import { logoutAction, switchWorkspaceAction } from './actions'
 
+export const maxDuration = 300
+
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, workspace, workspaces, access } = await requirePageContext()
   const projects = await listProjects(access.workspaceId)

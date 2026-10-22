@@ -33,6 +33,9 @@ export default defineConfig({
     timeout: 240_000,
     env: {
       NODE_ENV: 'production',
+      VERCEL: '0',
+      NEXT_PUBLIC_KNOWHUB_BETA: 'false',
+      DATABASE_AUTO_MIGRATE: 'true',
       DATABASE_URL: '',
       STORAGE_PROVIDER: 'local',
       OPENAI_API_KEY: '',

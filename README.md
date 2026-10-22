@@ -26,12 +26,24 @@ Usa datos ficticios, PGlite y almacenamiento propios dentro de `.data/presentati
 Los proveedores de IA/transcripción son mock explícitos: subir audio en ese perfil
 produce una transcripción de ejemplo, no reconoce lo dicho en el archivo.
 La importación de transcripciones conserva el texto aportado por el usuario.
+Las respuestas locales seleccionan frases por palabras compartidas con la pregunta.
+Si no hay coincidencias, se abstienen: este perfil no comprende sinónimos o paráfrasis
+como un modelo de IA conectado. Las citas permiten revisar el texto, pero no
+garantizan por sí solas que un fragmento responda completamente a la pregunta.
 
 Ver [auditoría, limitaciones y guion de demo](docs/mvp-audit-2026-09-22.md).
 Suscripciones, App Store y despliegue público de la aplicación todavía requieren
 implementación/configuración y validación. La landing publicada es independiente.
 
 ## Features
+
+### Beta pública en preparación
+
+El alcance de lanzamiento confirmado incluye registro abierto, cuentas personales,
+documentos, notas y transcripciones pegadas. El estado, límites y pasos de
+publicación están en [public-beta-launch](docs/public-beta-launch.md).
+Validación del perfil: `pnpm test:beta`. La demo pública anterior sigue siendo
+un entorno ficticio independiente.
 
 **Captura**
 - Grabación de reuniones desde el navegador (`MediaRecorder`, con pausa/reanudar)
@@ -288,3 +300,18 @@ Las migraciones se aplican solas en el primer arranque.
   alcance del MVP; la arquitectura los permite después.
 - **Privacidad y términos**: `/privacy` y `/terms` son borradores técnicos y
   requieren revisión jurídica antes de producción.
+
+### Demo pública interactiva (sin servicios externos)
+
+`demo-web/` contiene una exportación estática independiente para compartir el MVP académico. Reutiliza el logo, los botones y los colores de KnowHub. Incluye biblioteca, notas editables, proyectos, búsqueda, consultas con fragmentos y una reunión ficticia con decisiones, pendientes y transcripción. No necesita iniciar sesión.
+
+```bash
+npm run build:demo:web
+node scripts/serve-demo-web.mjs
+# http://127.0.0.1:3012
+npm run test:demo:web
+```
+
+Los datos iniciales son ficticios. Las ediciones se guardan en `sessionStorage` de cada visitante, sobreviven a una recarga y se pueden restaurar desde «Reiniciar demo». No hay sincronización, cuentas reales, carga de archivos personales, grabación, servicios de IA ni pagos en esta versión. Las consultas buscan coincidencias léxicas y citan texto literal; los resúmenes y las transcripciones están preparados. El navegador puede restaurar su sesión al reabrirse: usar «Reiniciar demo» para borrar explícitamente los cambios.
+
+Se publica **solo `demo-web/out/`**, como proyecto de Vercel `knowhub-demo-mvp`, separado de la landing y del backend del MVP. La configuración aplica CSP y bloquea cámara, micrófono, geolocalización e indexación. El script de compilación excluye archivos `.env*`; no hay que copiar secretos ni bases de datos al sitio. Ver `docs/public-demo.md` para el procedimiento y las pruebas.

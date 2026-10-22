@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { LandingPage } from '@/features/marketing/landing-page'
+import { redirect } from 'next/navigation'
+import { isPublicBeta } from '@/lib/release'
 
 export const metadata: Metadata = {
   title: 'KnowHub — Menos buscar. Más conectar.',
@@ -7,5 +9,6 @@ export const metadata: Metadata = {
 }
 
 export default function HomePage() {
+  if (isPublicBeta()) redirect('/dashboard')
   return <LandingPage />
 }

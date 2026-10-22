@@ -2,6 +2,9 @@ import { config } from 'dotenv'
 config({ path: '.env.local', quiet: true })
 config({ path: '.env', quiet: true })
 
+// This command is the explicit release step; web requests never enable DDL.
+process.env.DATABASE_AUTO_MIGRATE = 'true'
+
 async function main() {
   const { getDbHandle } = await import('../src/server/db/client')
   const handle = await getDbHandle()

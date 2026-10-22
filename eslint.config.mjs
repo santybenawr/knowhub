@@ -9,6 +9,9 @@ const config = [
   {
     ignores: [
       '.next/**',
+      'demo-web/.next/**',
+      'demo-web/out/**',
+      'demo-web/next-env.d.ts',
       'marketing/.next/**',
       'marketing/out/**',
       'marketing/next-env.d.ts',

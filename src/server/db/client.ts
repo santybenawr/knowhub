@@ -2,6 +2,7 @@ import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { getServerEnv } from '@/config/env'
 import { assertServerOnly } from '../assert-server'
 import { schema } from './schema'
+import { postgresConnectionConfig } from './connection'
 
 assertServerOnly('server/db/client')
 
@@ -34,12 +35,7 @@ declare global {
 async function createPostgres(url: string): Promise<DbHandle> {
   const { Pool } = await import('pg')
   const { drizzle } = await import('drizzle-orm/node-postgres')
-  const pool = new Pool({
-    connectionString: url,
-    max: 10,
-    // Supabase and most managed Postgres require TLS; local dev usually not.
-    ssl: url.includes('localhost') || url.includes('127.0.0.1') ? false : { rejectUnauthorized: false },
-  })
+  const pool = new Pool(postgresConnectionConfig(url, getServerEnv().DATABASE_SSL_CA))
   const db = drizzle(pool, { schema })
   return {
     db,
@@ -99,7 +95,15 @@ export async function getDbHandle(): Promise<DbHandle> {
       // Migrations are cheap and idempotent; running them on first access keeps
       // `pnpm dev` and the test suite working without a manual step.
       const { runMigrations } = await import('./migrate')
-      await runMigrations(handle)
+      if (env.DATABASE_AUTO_MIGRATE === 'true') {
+        await runMigrations(handle)
+      } else {
+        const { migrations } = await import('./migrations')
+        const applied = await handle.raw('SELECT id FROM __knowhub_migrations')
+        const ids = new Set(applied.rows.map(row => row.id))
+        const pending = migrations.filter(m => (!m.postgresOnly || handle.driver === 'postgres') && !ids.has(m.id))
+        if (pending.length > 0) throw new Error('La base de datos tiene migraciones pendientes. Ejecuta pnpm db:migrate antes de publicar.')
+      }
       return handle
     })()
   }

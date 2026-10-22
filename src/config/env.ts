@@ -28,6 +28,8 @@ const serverSchema = z.object({
 
   // Database. Absent => embedded PGlite (dev/test/CI, zero external services).
   DATABASE_URL: z.string().optional(),
+  DATABASE_SSL_CA: z.string().optional(),
+  DATABASE_AUTO_MIGRATE: z.enum(['true', 'false']).default('true'),
   PGLITE_DATA_DIR: z.string().default('.data/pglite'),
 
   // Auth
@@ -35,8 +37,10 @@ const serverSchema = z.object({
   AUTH_PROVIDER: z.enum(['local', 'supabase']).default('local'),
 
   // Storage
-  STORAGE_PROVIDER: z.enum(['local', 'supabase']).default('local'),
+  STORAGE_PROVIDER: z.enum(['local', 'supabase', 'vercel-blob']).default('local'),
   STORAGE_LOCAL_DIR: z.string().default('.data/storage'),
+  BLOB_READ_WRITE_TOKEN: z.string().optional(),
+  BLOB_STORE_ID: z.string().optional(),
 
   // Supabase (optional)
   NEXT_PUBLIC_SUPABASE_URL: z.string().optional(),
@@ -97,6 +101,12 @@ export function getServerEnv(): ServerEnv {
     throw new Error(`Invalid environment configuration:\n${issues}`)
   }
   cached = parsed.data
+  if (process.env.VERCEL === '1' && parsed.data.NODE_ENV === 'production') {
+    if (!parsed.data.DATABASE_URL || parsed.data.STORAGE_PROVIDER === 'local') {
+      cached = null
+      throw new Error('Vercel requiere PostgreSQL remoto y almacenamiento privado persistente.')
+    }
+  }
   return cached
 }
 
