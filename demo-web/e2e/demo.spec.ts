@@ -13,6 +13,9 @@ test('navigation, responsive layout and standalone links', async ({
   page,
   isMobile,
 }) => {
+  const logo = page.getByRole('img', { name: 'KnowHub', exact: true }).first()
+  await expect(logo).toHaveAttribute('src', '/brand/knowhub-3d.webp')
+  await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(1)
   await page
     .getByRole('link', { name: 'Explorar reunión', exact: true })
     .click()

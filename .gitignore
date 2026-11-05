@@ -24,5 +24,6 @@ marketing/out/
 /demo-web/.next/
 /demo-web/out/
 /demo-web/next-env.d.ts
+/demo-web/public/brand/
 .vercel
 .env*

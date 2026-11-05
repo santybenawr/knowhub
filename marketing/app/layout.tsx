@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   title: { default: 'KnowHub — Menos buscar. Más conectar.', template: '%s · KnowHub' },
   description: 'Tus documentos, notas y reuniones, conectados. Conoce KnowHub y explora un primer vistazo a una nueva forma de encontrar respuestas. Próximamente.',
   applicationName: 'KnowHub',
-  icons: { icon: [{ url: '/icon.svg', type: 'image/svg+xml' }] },
+  icons: { icon: [{ url: '/brand/favicon-3d.png', sizes: '48x48', type: 'image/png' }] },
   openGraph: {
     title: 'KnowHub — Menos buscar. Más conectar.',
     description: 'Un nuevo lugar para todo lo que sabes. Explora la demo. Próximamente.',

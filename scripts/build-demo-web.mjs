@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, copyFileSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
+mkdirSync('demo-web/public', { recursive: true })
+cpSync('public/brand', 'demo-web/public/brand', { recursive: true })
 const result = spawnSync(
   process.execPath,
   ['node_modules/next/dist/bin/next', 'build', 'demo-web', '--webpack'],

@@ -7,6 +7,9 @@ test('el prelanzamiento muestra la demo sin ofrecer cuentas o enviar preguntas a
   })
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Menos buscar.Más conectar.')
+  const logo = page.getByRole('img', { name: 'KnowHub', exact: true }).first()
+  await expect(logo).toHaveAttribute('src', '/brand/knowhub-3d.webp')
+  await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(1)
   await expect(page.getByRole('link', { name: 'Explorar demo', exact: true }).first()).toHaveAttribute('href', '/#demo')
   await expect(page.locator('a[href="/signup"], a[href="/login"]')).toHaveCount(0)
   await page.getByRole('button', { name: 'Revelar respuesta', exact: true }).click()
@@ -23,12 +26,13 @@ test('el prelanzamiento muestra la demo sin ofrecer cuentas o enviar preguntas a
 
 test('el movimiento puede pausarse y respeta cambios de preferencia', async ({ page }) => {
   await page.goto('/')
+  await expect(page.locator('[data-reduced]')).toHaveAttribute('data-reduced', 'false')
   await page.getByRole('button', { name: 'Pausar animaciones', exact: true }).click()
   await expect(page.locator('[data-paused]')).toHaveAttribute('data-paused', 'true')
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await expect(page.locator('[data-reduced]')).toHaveAttribute('data-reduced', 'true')
   await expect(page.getByRole('button', { name: 'Reanudar animaciones' })).toBeHidden()
-  await expect(page.locator('main img')).toHaveCSS('animation-name', 'none')
+  await expect(page.getByRole('img', { name: 'Escultura de cristal violeta entrelazado, símbolo de ideas que se conectan' })).toHaveCSS('animation-name', 'none')
 })
 
 test('320, 390, 768 y 1440 px mantienen el contenido dentro de la pantalla', async ({ page }) => {
@@ -44,7 +48,7 @@ test('la narrativa, la fuente y los enlaces siguen disponibles sin JavaScript', 
   const page = await context.newPage()
   await page.goto('http://127.0.0.1:3033/')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  await expect(page.locator('noscript').last()).toContainText('El equipo eligió al proveedor B')
+  await expect(page.getByText('El equipo eligió al proveedor B para avanzar con el proyecto.', { exact: true })).toBeVisible()
   await page.getByRole('link', { name: 'Privacidad', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Privacidad de esta presentación')
   await context.close()

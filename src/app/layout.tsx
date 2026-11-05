@@ -22,8 +22,8 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: APP.name, statusBarStyle: 'default' },
   formatDetection: { telephone: false },
   icons: {
-    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
-    apple: [{ url: '/icon-192.png', sizes: '192x192' }],
+    icon: [{ url: '/brand/favicon-3d.png', sizes: '48x48', type: 'image/png' }],
+    apple: [{ url: '/brand/apple-touch-icon-3d.png', sizes: '180x180', type: 'image/png' }],
   },
 }
 

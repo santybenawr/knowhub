@@ -283,6 +283,21 @@ validación de archivos por contenido, permisos por rol y límites de plan.
 pnpm verify   # lint + typecheck + test + build
 ```
 
+## Marca de la aplicación
+
+La marca reutiliza la escultura original de cristal violeta de
+`public/marketing/memory-sculpture.webp`. `Logo` la muestra en acceso, onboarding,
+navegación, ayuda y presentaciones; los iconos de instalación son PNG reales,
+incluida una variante maskable con margen. Para volver a exportarlos sin cambiar
+el diseño ni usar servicios externos:
+
+```bash
+node scripts/export-brand-icons.mjs
+```
+
+Los scripts de build de landing y demo copian los recursos de `public/brand` a
+sus exportaciones. No requieren descargar la marca ni añadir dependencias.
+
 ## Deployment
 
 Para actualizar la beta existente, seguir [public-beta-launch](docs/public-beta-launch.md):
