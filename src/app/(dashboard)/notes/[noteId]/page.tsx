@@ -44,6 +44,7 @@ export default async function NotePage({ params }: Params) {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <NoteEditor
+        key={note.id}
         noteId={note.id}
         initialTitle={note.title}
         initialContent={note.content}

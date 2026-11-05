@@ -1,4 +1,4 @@
-import { FileStack, Home, Mic, Search, Sparkles } from 'lucide-react'
+import { BookOpen, FileStack, Home, Mic, Search, Sparkles } from 'lucide-react'
 
 /** §48/§49 — One source of truth for the desktop sidebar and the mobile bar. */
 export const PRIMARY_NAV = [
@@ -7,6 +7,7 @@ export const PRIMARY_NAV = [
   { href: '/ask', label: 'Preguntar', icon: Sparkles, mobile: true, desktopLabel: 'Preguntar a KnowHub' },
   { href: '/meetings', label: 'Reuniones', icon: Mic, mobile: true },
   { href: '/search', label: 'Buscar', icon: Search, mobile: false },
+  { href: '/help', label: 'Ayuda y guía', icon: BookOpen, mobile: false },
 ] as const
 
 export const SECONDARY_NAV = [

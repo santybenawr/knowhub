@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull } from 'drizzle-orm'
 import { getDb } from '@/server/db/client'
 import { noteChunks, notes } from '@/server/db/schema'
 import { chunkPlainText } from '@/server/ai/chunking'
@@ -26,15 +26,19 @@ export async function createNote(input: {
   tags?: string[]
 }): Promise<string> {
   const db = await getDb()
+  const title = (input.title ?? '').trim().slice(0, 200)
+  const content = input.content ?? ''
+  const hasText = title.length > 0 || content.trim().length > 0
   const rows = await db
     .insert(notes)
     .values({
       workspaceId: input.access.workspaceId,
       projectId: input.projectId ?? null,
       createdBy: input.access.userId,
-      title: (input.title ?? '').trim().slice(0, 200),
-      content: input.content ?? '',
+      title,
+      content,
       tags: input.tags ?? [],
+      embeddingStatus: hasText ? 'pending' : 'completed',
     })
     .returning({ id: notes.id })
 
@@ -42,7 +46,7 @@ export async function createNote(input: {
   if (!note) throw new Error('No pudimos crear la nota.')
 
   await trackEvent('note_created', input.access)
-  if ((input.content ?? '').trim().length > 0) await scheduleNoteIndexing(input.access.workspaceId, note.id)
+  if (hasText) await scheduleNoteIndexing(input.access.workspaceId, note.id)
   return note.id
 }
 
@@ -81,51 +85,48 @@ async function scheduleNoteIndexing(workspaceId: string, noteId: string): Promis
 
 export async function indexNote(noteId: string): Promise<void> {
   const db = await getDb()
-  const rows = await db.select().from(notes).where(eq(notes.id, noteId)).limit(1)
-  const note = rows[0]
-  if (!note) throw notFound('No encontramos esta nota.')
+  const [note] = await db.select().from(notes)
+    .where(and(eq(notes.id, noteId), isNull(notes.deletedAt))).limit(1)
+  // Deleting a note while its job waits should not recreate searchable content.
+  if (!note) return
 
-  await db.update(notes).set({ embeddingStatus: 'processing' }).where(eq(notes.id, noteId))
+  const unchanged = and(
+    eq(notes.id, noteId), isNull(notes.deletedAt),
+    eq(notes.title, note.title), eq(notes.content, note.content),
+  )
+  const started = await db.update(notes).set({ embeddingStatus: 'processing' })
+    .where(unchanged).returning({ id: notes.id })
+  if (started.length === 0) return
 
   try {
-    // The title carries a lot of retrieval signal for short notes.
     const body = [note.title, note.content].filter((s) => s.trim().length > 0).join('\n\n')
     const chunks = chunkPlainText(body)
+    // Keep the previous searchable version until the complete replacement is
+    // ready. A slow provider must not leave half-written or empty chunks.
+    const { vectors, tokens } = await embedTexts(chunks.map(chunk => chunk.content))
+    if (tokens > 0) await recordUsage(note.workspaceId, 'embedding_tokens', tokens)
 
     await db.transaction(async (tx) => {
+      // This conditional update also holds the row lock through chunk commit.
+      // A newer edit either wins first (so we discard this snapshot), or waits
+      // and marks the note pending after the old version is committed.
+      const current = await tx.update(notes).set({ embeddingStatus: 'completed' })
+        .where(unchanged).returning({ id: notes.id })
+      if (current.length === 0) return
       await tx.delete(noteChunks).where(eq(noteChunks.noteId, noteId))
       if (chunks.length > 0) {
-        await tx.insert(noteChunks).values(
-          chunks.map((chunk) => ({
-            noteId,
-            workspaceId: note.workspaceId,
-            content: chunk.content,
-            chunkIndex: chunk.index,
-            tokenCount: chunk.tokenCount,
-          })),
-        )
+        await tx.insert(noteChunks).values(chunks.map((chunk, index) => ({
+          noteId,
+          workspaceId: note.workspaceId,
+          content: chunk.content,
+          chunkIndex: chunk.index,
+          tokenCount: chunk.tokenCount,
+          embedding: vectors[index],
+        })))
       }
     })
-
-    const stored = await db
-      .select({ id: noteChunks.id, content: noteChunks.content })
-      .from(noteChunks)
-      .where(eq(noteChunks.noteId, noteId))
-      .orderBy(asc(noteChunks.chunkIndex))
-
-    if (stored.length > 0) {
-      const { vectors, tokens } = await embedTexts(stored.map((c) => c.content))
-      for (const [i, chunk] of stored.entries()) {
-        const vector = vectors[i]
-        if (!vector) continue
-        await db.update(noteChunks).set({ embedding: vector }).where(eq(noteChunks.id, chunk.id))
-      }
-      await recordUsage(note.workspaceId, 'embedding_tokens', tokens)
-    }
-
-    await db.update(notes).set({ embeddingStatus: 'completed' }).where(eq(notes.id, noteId))
   } catch (err) {
-    await db.update(notes).set({ embeddingStatus: 'failed' }).where(eq(notes.id, noteId))
+    await db.update(notes).set({ embeddingStatus: 'failed' }).where(unchanged)
     throw err
   }
 }

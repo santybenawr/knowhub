@@ -90,7 +90,10 @@ export async function search(options: SearchOptions): Promise<SearchHit[]> {
   keywordRows.forEach((row, i) => upsert(row, keyword[i] ?? 0, 0))
   semanticRows.forEach((row, i) => upsert(row, 0, semantic[i] ?? 0))
 
-  return [...merged.values()].sort((a, b) => b.score - a.score).slice(0, limit)
+  return [...merged.values()]
+    .filter(hit => hit.score >= SEARCH_CONFIG.rag.scoreThreshold)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
 }
 
 function parseSpeakerKeys(value: unknown): string[] {

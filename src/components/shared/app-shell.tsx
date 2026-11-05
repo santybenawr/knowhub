@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import * as React from 'react'
-import { ChevronDown, FolderKanban, LogOut, Plus, Settings, User } from 'lucide-react'
+import { BookOpen, ChevronDown, FolderKanban, LogOut, Plus, Settings, User } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { APP } from '@/config/app'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,7 @@ import { Logo } from './logo'
 import { ThemeToggle } from './theme-toggle'
 import { PRIMARY_NAV } from './nav-config'
 import { Button } from '@/components/ui/button'
+import { flushPendingChanges } from '@/lib/pending-changes'
 
 export type ShellWorkspace = { id: string; name: string; type: string; role: string }
 export type ShellProject = { id: string; name: string; icon: string }
@@ -136,6 +137,14 @@ export function AppShell({
           <span className="font-semibold tracking-tight text-ink">{APP.name}</span>
         </Link>
         <div className="flex items-center gap-1.5">
+          <Link
+            href="/help"
+            aria-label="Ayuda y guía"
+            aria-current={isActive('/help') ? 'page' : undefined}
+            className="rounded-lg p-2 text-ink-muted hover:bg-surface-muted hover:text-ink"
+          >
+            <BookOpen className="size-5" aria-hidden />
+          </Link>
           <WorkspaceSwitcher
             workspace={workspace}
             workspaces={workspaces}
@@ -202,6 +211,7 @@ function WorkspaceSwitcher({
   compact?: boolean
 }) {
   const [pending, startTransition] = React.useTransition()
+  const router = useRouter()
 
   return (
     <DropdownMenu.Root>
@@ -210,7 +220,7 @@ function WorkspaceSwitcher({
           type="button"
           className={cn(
             'flex items-center gap-2 rounded-lg border border-border-subtle bg-surface px-2.5 py-2 text-left text-sm transition-colors hover:bg-surface-muted',
-            compact ? 'max-w-[9rem]' : 'w-full',
+            compact ? 'max-w-[7rem] sm:max-w-[9rem]' : 'w-full',
           )}
           disabled={pending}
         >
@@ -232,7 +242,12 @@ function WorkspaceSwitcher({
           {workspaces.map((item) => (
             <DropdownMenu.Item
               key={item.id}
-              onSelect={() => startTransition(() => void onSwitch(item.id))}
+              disabled={pending || item.id === workspace.id}
+              onSelect={() => startTransition(async () => {
+                if (!await flushPendingChanges()) return
+                await onSwitch(item.id)
+                router.push('/dashboard')
+              })}
               className={cn(
                 'flex cursor-pointer items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm outline-none',
                 'data-[highlighted]:bg-surface-muted',
@@ -285,7 +300,9 @@ function UserMenu({
         size="icon"
         aria-label="Cerrar sesión"
         loading={pending}
-        onClick={() => startTransition(() => void onLogout())}
+        onClick={() => startTransition(async () => {
+          if (await flushPendingChanges()) await onLogout()
+        })}
       >
         <LogOut className="size-4" />
       </Button>

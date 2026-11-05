@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
 import { getDb } from '@/server/db/client'
-import { projects } from '@/server/db/schema'
-import { notFound } from '@/lib/errors'
+import { documents, meetings, notes, projects } from '@/server/db/schema'
+import { notFound, validation } from '@/lib/errors'
 import type { WorkspaceAccess } from '@/server/permissions'
 
 export type ProjectSummary = {
@@ -21,6 +21,7 @@ export async function createProject(input: {
   description?: string | null
   icon?: string | null
 }): Promise<string> {
+  if (!input.name.trim()) throw validation('Ingresa un nombre para el proyecto.')
   const db = await getDb()
   const rows = await db
     .insert(projects)
@@ -92,6 +93,7 @@ export async function updateProject(input: {
   icon?: string | null
   archived?: boolean
 }): Promise<void> {
+  if (input.name !== undefined && !input.name.trim()) throw validation('Ingresa un nombre para el proyecto.')
   const db = await getDb()
   await getProject(input.projectId, input.access.workspaceId)
   await db
@@ -110,8 +112,11 @@ export async function updateProject(input: {
 export async function deleteProject(projectId: string, access: WorkspaceAccess): Promise<void> {
   const db = await getDb()
   await getProject(projectId, access.workspaceId)
-  await db
-    .update(projects)
-    .set({ deletedAt: new Date() })
-    .where(and(eq(projects.id, projectId), eq(projects.workspaceId, access.workspaceId)))
+  await db.transaction(async tx => {
+    for (const table of [documents, notes, meetings]) {
+      await tx.update(table).set({ projectId: null }).where(and(eq(table.projectId, projectId), eq(table.workspaceId, access.workspaceId)))
+    }
+    await tx.update(projects).set({ deletedAt: new Date() })
+      .where(and(eq(projects.id, projectId), eq(projects.workspaceId, access.workspaceId)))
+  })
 }

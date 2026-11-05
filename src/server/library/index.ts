@@ -2,6 +2,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm'
 import { getDb, rawQuery } from '@/server/db/client'
 import { documents, meetings, notes } from '@/server/db/schema'
 import { truncate } from '@/lib/text'
+import { DOCUMENT_FORMATS, type DocumentFormat } from '@/lib/document-formats'
 import type { ResourceKind } from '@/server/search/types'
 
 /**
@@ -22,12 +23,14 @@ export type LibraryItem = {
   projectName: string | null
   status: string
   durationSeconds: number | null
+  mimeType: string | null
 }
 
 export type LibraryFilters = {
   kinds?: ResourceKind[]
   projectId?: string | null
   limit?: number
+  format?: DocumentFormat | null
 }
 
 type LibraryRow = {
@@ -40,6 +43,7 @@ type LibraryRow = {
   project_name: string | null
   status: string
   duration_seconds: number | string | null
+  mime_type: string | null
 }
 
 export async function listLibrary(
@@ -47,7 +51,8 @@ export async function listLibrary(
   filters: LibraryFilters = {},
 ): Promise<LibraryItem[]> {
   const kinds = filters.kinds ?? ['document', 'note', 'meeting']
-  const limit = Math.min(filters.limit ?? 60, 200)
+  const requestedLimit = filters.limit ?? 60
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.trunc(requestedLimit), 200)) : 60
   const params: unknown[] = [workspaceId]
 
   let projectClause = ''
@@ -57,31 +62,38 @@ export async function listLibrary(
   }
 
   const parts: string[] = []
+  const format = DOCUMENT_FORMATS.find(option => option.value === filters.format)
+  let formatClause = ''
+  if (format) {
+    params.push(format.mimeType)
+    formatClause = `AND r.mime_type = $${params.length}`
+  }
 
   if (kinds.includes('document')) {
     parts.push(`
       SELECT 'document' AS kind, r.id, r.title, r.summary AS excerpt, r.created_at AS date,
              r.project_id, p.name AS project_name, r.processing_status AS status,
-             NULL::integer AS duration_seconds
-      FROM documents r LEFT JOIN projects p ON p.id = r.project_id
+             NULL::integer AS duration_seconds, r.mime_type
+      FROM documents r LEFT JOIN projects p ON p.id = r.project_id AND p.workspace_id = r.workspace_id AND p.deleted_at IS NULL
+      WHERE r.workspace_id = $1 AND r.deleted_at IS NULL ${projectClause} ${formatClause}`)
+  }
+
+  if (kinds.includes('note') && !format) {
+    parts.push(`
+      SELECT 'note' AS kind, r.id,
+             CASE WHEN r.title = '' THEN 'Nota sin título' ELSE r.title END AS title,
+             left(r.content, 240) AS excerpt, r.updated_at AS date,
+             r.project_id, p.name AS project_name, 'completed' AS status, NULL::integer AS duration_seconds,
+             NULL::text AS mime_type
+      FROM notes r LEFT JOIN projects p ON p.id = r.project_id AND p.workspace_id = r.workspace_id AND p.deleted_at IS NULL
       WHERE r.workspace_id = $1 AND r.deleted_at IS NULL ${projectClause}`)
   }
 
-  if (kinds.includes('note')) {
+  if (kinds.includes('meeting') && !format) {
     parts.push(`
-      SELECT 'note', r.id,
-             CASE WHEN r.title = '' THEN 'Nota sin título' ELSE r.title END,
-             left(r.content, 240), r.updated_at,
-             r.project_id, p.name, 'completed', NULL::integer
-      FROM notes r LEFT JOIN projects p ON p.id = r.project_id
-      WHERE r.workspace_id = $1 AND r.deleted_at IS NULL ${projectClause}`)
-  }
-
-  if (kinds.includes('meeting')) {
-    parts.push(`
-      SELECT 'meeting', r.id, r.title, NULL::text, r.meeting_date,
-             r.project_id, p.name, r.status, r.duration_seconds
-      FROM meetings r LEFT JOIN projects p ON p.id = r.project_id
+      SELECT 'meeting' AS kind, r.id, r.title, NULL::text AS excerpt, r.meeting_date AS date,
+             r.project_id, p.name AS project_name, r.status, r.duration_seconds, NULL::text AS mime_type
+      FROM meetings r LEFT JOIN projects p ON p.id = r.project_id AND p.workspace_id = r.workspace_id AND p.deleted_at IS NULL
       WHERE r.workspace_id = $1 AND r.deleted_at IS NULL ${projectClause}`)
   }
 
@@ -102,6 +114,7 @@ export async function listLibrary(
     projectName: row.project_name,
     status: row.status,
     durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
+    mimeType: row.mime_type,
   }))
 }
 

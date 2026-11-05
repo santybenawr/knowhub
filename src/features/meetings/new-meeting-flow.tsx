@@ -10,10 +10,12 @@ import { cn } from '@/lib/utils'
 import type { ActionResult } from '@/lib/action-result'
 import { RecorderPanel } from './recording/recorder-panel'
 import { isPublicBeta } from '@/lib/release'
+import { todayMeetingDate } from '@/lib/meeting-date'
 
 type Mode = 'record' | 'upload' | 'import'
 
 type Props = {
+  initialProjectId?: string | null
   projects: Array<{ id: string; name: string }>
   hasConsent: boolean
   todayLabel: string
@@ -32,6 +34,7 @@ type Props = {
 
 /** §57/§58/§59 — Choose a source, fill the short form, then capture. */
 export function NewMeetingFlow({
+  initialProjectId = null,
   projects,
   hasConsent,
   todayLabel,
@@ -45,6 +48,8 @@ export function NewMeetingFlow({
 
   const [mode, setMode] = React.useState<Mode>(isPublicBeta() ? 'import' : 'record')
   const [meetingId, setMeetingId] = React.useState<string | null>(null)
+  const meetingIdRef = React.useRef<string | null>(null)
+  const submittingRef = React.useRef(false)
   const [meetingTitle, setMeetingTitle] = React.useState('')
   const [consented, setConsented] = React.useState(hasConsent)
   const [consentChecked, setConsentChecked] = React.useState(false)
@@ -53,8 +58,8 @@ export function NewMeetingFlow({
 
   const [form, setForm] = React.useState({
     title: '',
-    projectId: '',
-    meetingDate: new Date().toISOString().slice(0, 10),
+    projectId: initialProjectId ?? '',
+    meetingDate: todayMeetingDate(),
     language: 'auto' as 'auto' | 'es' | 'en',
     participants: '',
   })
@@ -63,48 +68,60 @@ export function NewMeetingFlow({
   const [audioFile, setAudioFile] = React.useState<File | null>(null)
 
   const submit = () => {
+    if (submittingRef.current) return
+    submittingRef.current = true
     setError(null)
     startTransition(async () => {
-      const result = await createMeeting({
-        title: form.title || undefined,
-        projectId: form.projectId || null,
-        meetingDate: form.meetingDate,
-        language: form.language,
-        participants: form.participants || undefined,
-        source: mode === 'record' ? 'recording' : mode === 'upload' ? 'upload' : 'transcript_import',
-      })
+      try {
+        let id = meetingIdRef.current
+        if (!id) {
+          const result = await createMeeting({
+            title: form.title || undefined,
+            projectId: form.projectId || null,
+            meetingDate: form.meetingDate,
+            language: form.language,
+            participants: form.participants || undefined,
+            source: mode === 'record' ? 'recording' : mode === 'upload' ? 'upload' : 'transcript_import',
+          })
 
-      if (!result.ok) {
-        setError(result.error)
-        return
-      }
+          if (!result.ok) {
+            setError(result.error)
+            return
+          }
 
-      const id = result.data.meetingId
-      setMeetingId(id)
-      setMeetingTitle(form.title || `Reunión ${todayLabel}`)
+          id = result.data.meetingId
+          meetingIdRef.current = id
+          setMeetingId(id)
+          setMeetingTitle(form.title || `Reunión ${todayLabel}`)
+        }
 
-      if (mode === 'import') {
-        const imported = await importTranscript({ meetingId: id, transcript })
-        if (!imported.ok) {
-          setError(imported.error)
+        if (mode === 'import') {
+          const imported = await importTranscript({ meetingId: id, transcript })
+          if (!imported.ok) {
+            setError(imported.error)
+            return
+          }
+          notify('Transcripción importada. KnowHub la está analizando.', 'success')
+          router.push(`/meetings/${id}`)
           return
         }
-        notify('Transcripción importada. KnowHub la está analizando.', 'success')
-        router.push(`/meetings/${id}`)
-        return
-      }
 
-      if (mode === 'upload' && audioFile) {
-        const body = new FormData()
-        body.append('audio', audioFile)
-        const response = await fetch(`/api/meetings/${id}/audio`, { method: 'POST', body })
-        if (!response.ok) {
-          const detail = (await response.json().catch(() => null)) as { error?: string } | null
-          setError(detail?.error ?? 'No pudimos subir el audio.')
-          return
+        if (mode === 'upload' && audioFile) {
+          const body = new FormData()
+          body.append('audio', audioFile)
+          const response = await fetch(`/api/meetings/${id}/audio`, { method: 'POST', body })
+          if (!response.ok) {
+            const detail = (await response.json().catch(() => null)) as { error?: string } | null
+            setError(detail?.error ?? 'No pudimos subir el audio.')
+            return
+          }
+          notify('Audio subido. KnowHub lo está transcribiendo.', 'success')
+          router.push(`/meetings/${id}`)
         }
-        notify('Audio subido. KnowHub lo está transcribiendo.', 'success')
-        router.push(`/meetings/${id}`)
+      } catch {
+        setError('Se interrumpió la conexión. Tu contenido sigue aquí; puedes intentar de nuevo.')
+      } finally {
+        submittingRef.current = false
       }
     })
   }
@@ -121,7 +138,7 @@ export function NewMeetingFlow({
 
   const canSubmit =
     !pending &&
-    (mode === 'record' ? consented : mode === 'upload' ? !!audioFile : transcript.trim().length > 20)
+    (mode === 'record' ? consented : mode === 'upload' ? !!audioFile : transcript.trim().length > 0)
 
   return (
     <div className="space-y-6">
@@ -139,6 +156,7 @@ export function NewMeetingFlow({
               key={option.id}
               type="button"
               onClick={() => setMode(option.id)}
+              disabled={pending || meetingId !== null}
               aria-pressed={mode === option.id}
               className={cn(
                 'flex flex-col gap-1.5 rounded-card border p-4 text-left transition-colors',
@@ -165,6 +183,8 @@ export function NewMeetingFlow({
         <Field label="Título" htmlFor="title" hint={`Opcional. Si lo dejas vacío usaremos "Reunión ${todayLabel}".`}>
           <Input
             id="title"
+            disabled={pending || meetingId !== null}
+            maxLength={200}
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             placeholder="Reunión Proyecto Omega"
@@ -175,6 +195,7 @@ export function NewMeetingFlow({
           <Field label="Proyecto" htmlFor="projectId">
             <Select
               id="projectId"
+              disabled={pending || meetingId !== null}
               value={form.projectId}
               onChange={(e) => setForm((f) => ({ ...f, projectId: e.target.value }))}
             >
@@ -190,6 +211,7 @@ export function NewMeetingFlow({
           <Field label="Fecha" htmlFor="meetingDate">
             <Input
               id="meetingDate"
+              disabled={pending || meetingId !== null}
               type="date"
               value={form.meetingDate}
               onChange={(e) => setForm((f) => ({ ...f, meetingDate: e.target.value }))}
@@ -199,6 +221,7 @@ export function NewMeetingFlow({
           <Field label="Idioma" htmlFor="language">
             <Select
               id="language"
+              disabled={pending || meetingId !== null}
               value={form.language}
               onChange={(e) => setForm((f) => ({ ...f, language: e.target.value as typeof f.language }))}
             >
@@ -211,6 +234,8 @@ export function NewMeetingFlow({
           <Field label="Participantes" htmlFor="participants" hint="Opcional, separados por comas.">
             <Input
               id="participants"
+              disabled={pending || meetingId !== null}
+              maxLength={500}
               value={form.participants}
               onChange={(e) => setForm((f) => ({ ...f, participants: e.target.value }))}
               placeholder="Santiago, Laura"
@@ -222,6 +247,7 @@ export function NewMeetingFlow({
           <Field label="Archivo de audio" htmlFor="audio">
             <Input
               id="audio"
+              disabled={pending}
               type="file"
               accept="audio/*,video/mp4,video/webm"
               onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)}
@@ -238,6 +264,8 @@ export function NewMeetingFlow({
           >
             <Textarea
               id="transcript"
+              disabled={pending}
+              maxLength={200_000}
               value={transcript}
               onChange={(e) => setTranscript(e.target.value)}
               rows={10}
@@ -287,6 +315,12 @@ export function NewMeetingFlow({
       {error ? (
         <p className="rounded-lg border border-record/40 bg-record-soft p-3 text-sm text-ink" role="alert">
           {error}
+        </p>
+      ) : null}
+
+      {error && meetingId ? (
+        <p className="text-sm text-ink-muted">
+          La reunión ya está creada. Al reintentar usaremos la misma reunión y conservaremos este contenido.
         </p>
       ) : null}
 

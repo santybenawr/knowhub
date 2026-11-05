@@ -11,6 +11,8 @@ import { ResourceCard } from '@/components/shared/resource-card'
 import { UploadDialog } from '@/features/library/upload-dialog'
 import { AskPanel } from '@/features/ask/ask-panel'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ProcessingRefresh } from '@/features/library/processing-refresh'
+import { isPublicBeta } from '@/lib/release'
 
 type Params = { params: Promise<{ projectId: string }> }
 
@@ -40,6 +42,7 @@ export default async function ProjectPage({ params }: Params) {
 
   return (
     <div className="space-y-6">
+      <ProcessingRefresh active={items.some(item => ['pending', 'processing', 'uploading'].includes(item.status))} />
       <div>
         <Link
           href="/projects"
@@ -63,8 +66,8 @@ export default async function ProjectPage({ params }: Params) {
 
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild size="sm">
-              <Link href="/meetings/new">
-                <Mic /> Grabar
+              <Link href={`/meetings/new?project=${project.id}`}>
+                <Mic /> {isPublicBeta() ? 'Importar reunión' : 'Grabar'}
               </Link>
             </Button>
             <UploadDialog
@@ -77,7 +80,7 @@ export default async function ProjectPage({ params }: Params) {
               }
             />
             <Button asChild variant="secondary" size="sm">
-              <Link href="/notes/new">
+              <Link href={`/notes/new?project=${project.id}`}>
                 <NotebookPen /> Nota
               </Link>
             </Button>
@@ -95,7 +98,7 @@ export default async function ProjectPage({ params }: Params) {
           {items.length === 0 ? (
             <EmptyState
               title="Este proyecto todavía está vacío."
-              description="Sube un documento, escribe una nota o graba una reunión y quedará asociada aquí."
+              description={isPublicBeta() ? 'Sube un documento, escribe una nota o importa una transcripción desde este proyecto para organizarla aquí.' : 'Sube un documento, escribe una nota o graba una reunión desde este proyecto para organizarla aquí.'}
             />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -109,6 +112,7 @@ export default async function ProjectPage({ params }: Params) {
                   durationSeconds={item.durationSeconds}
                   status={item.status}
                   excerpt={item.excerpt}
+                  mimeType={item.mimeType}
                 />
               ))}
             </div>

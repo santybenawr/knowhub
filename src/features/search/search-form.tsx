@@ -41,6 +41,7 @@ export function SearchForm({
           placeholder="Busca una idea, una decisión, un nombre..."
           aria-label="Búsqueda"
           autoFocus
+          maxLength={500}
           className="flex-1"
         />
         <Button type="submit" aria-label="Buscar">

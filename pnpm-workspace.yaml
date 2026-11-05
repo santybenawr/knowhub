@@ -29,6 +29,10 @@ minimumReleaseAgeExclude:
 # Security patch for Mammoth's transitive XML parser (GHSA-93r5-fhx6-vmg9
 # and related 0.8.14 advisories). Keep the existing 0.8.x compatibility line.
 overrides:
+  'zod@>=4 <4.6.6': 4.6.6
+  # typescript-eslint only uses minimatch(path, pattern, { dot: true });
+  # 11.0.1 preserves that API and fixes GHSA-g3hv-75wg-m249.
+  'minimatch@>=7 <11.0.1': 11.0.1
   '@xmldom/xmldom': 0.8.15
   js-yaml: 4.3.2
   '@esbuild-kit/core-utils>esbuild': 0.25.12

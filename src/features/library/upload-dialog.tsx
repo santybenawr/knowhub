@@ -42,6 +42,7 @@ export function UploadDialog({
   const [progress, setProgress] = React.useState(0)
   const [uploading, setUploading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const uploadInFlight = React.useRef(false)
 
   const reset = () => {
     setFile(null)
@@ -49,14 +50,20 @@ export function UploadDialog({
     setProgress(0)
     setUploading(false)
     setError(null)
+    setProjectId(defaultProjectId ?? '')
   }
 
   const upload = () => {
-    if (!file) return
+    if (!file || uploadInFlight.current) return
+    if (file.size === 0) {
+      setError('El archivo está vacío. Selecciona uno que tenga contenido.')
+      return
+    }
     if (file.size > documentUploadLimitMb() * 1024 * 1024) {
       setError(`El archivo supera el máximo de ${documentUploadLimitMb()} MB.`)
       return
     }
+    uploadInFlight.current = true
     setUploading(true)
     setError(null)
     setProgress(0)
@@ -70,12 +77,14 @@ export function UploadDialog({
 
     const request = new XMLHttpRequest()
     request.open('POST', '/api/documents/upload')
+    request.timeout = 120_000
 
     request.upload.onprogress = (event) => {
       if (event.lengthComputable) setProgress(Math.round((event.loaded / event.total) * 100))
     }
 
     request.onload = () => {
+      uploadInFlight.current = false
       setUploading(false)
       if (request.status >= 200 && request.status < 300) {
         notify('Documento subido. KnowHub lo está procesando.', 'success')
@@ -93,8 +102,14 @@ export function UploadDialog({
     }
 
     request.onerror = () => {
+      uploadInFlight.current = false
       setUploading(false)
       setError('Se interrumpió la conexión durante la subida.')
+    }
+    request.ontimeout = () => {
+      uploadInFlight.current = false
+      setUploading(false)
+      setError('La subida tardó demasiado. Revisa la biblioteca antes de reintentar para evitar duplicados.')
     }
 
     request.send(body)
@@ -104,6 +119,7 @@ export function UploadDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        if (!next && uploadInFlight.current) return
         setOpen(next)
         if (!next) reset()
       }}
@@ -112,7 +128,7 @@ export function UploadDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Subir documento</DialogTitle>
-          <DialogDescription>PDF, Word (.docx), Markdown o texto plano. Máximo {documentUploadLimitMb()} MB por archivo.</DialogDescription>
+          <DialogDescription>PDF con texto seleccionable, Word (.docx), Markdown o TXT. Máximo {documentUploadLimitMb()} MB por archivo.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -125,8 +141,9 @@ export function UploadDialog({
             onDrop={(event) => {
               event.preventDefault()
               setDragging(false)
+              if (uploadInFlight.current) return
               const dropped = event.dataTransfer.files?.[0]
-              if (dropped) setFile(dropped)
+              if (dropped) { setFile(dropped); setError(null) }
             }}
             className={cn(
               'rounded-card border-2 border-dashed p-6 text-center transition-colors',
@@ -142,8 +159,9 @@ export function UploadDialog({
             </p>
             <Input
               type="file"
+              disabled={uploading}
               accept={ACCEPTED}
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => { setFile(event.target.files?.[0] ?? null); setError(null) }}
               aria-label="Seleccionar archivo"
               className="mx-auto mt-3 max-w-xs cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-surface-muted file:px-3 file:py-1.5 file:text-sm file:text-ink"
             />
@@ -153,6 +171,8 @@ export function UploadDialog({
             <Input
               id="doc-title"
               value={title}
+              disabled={uploading}
+              maxLength={200}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="Principios de Administración"
             />
@@ -163,6 +183,7 @@ export function UploadDialog({
               <Select
                 id="doc-project"
                 value={projectId}
+                disabled={uploading}
                 onChange={(event) => setProjectId(event.target.value)}
               >
                 <option value="">Sin proyecto</option>
@@ -179,7 +200,7 @@ export function UploadDialog({
             <div>
               <div className="flex items-center justify-between text-xs text-ink-muted">
                 <span className="flex items-center gap-1.5">
-                  <Loader2 className="size-3 animate-spin" aria-hidden /> Subiendo
+                  <Loader2 className="size-3 animate-spin" aria-hidden /> {progress === 100 ? 'Confirmando el archivo…' : 'Subiendo'}
                 </span>
                 <span>{progress}%</span>
               </div>
@@ -203,7 +224,7 @@ export function UploadDialog({
           ) : null}
 
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setOpen(false)} disabled={uploading}>
+            <Button variant="ghost" onClick={() => { setOpen(false); reset() }} disabled={uploading}>
               Cancelar
             </Button>
             <Button onClick={upload} disabled={!file || uploading} loading={uploading}>

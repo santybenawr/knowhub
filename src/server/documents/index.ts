@@ -12,7 +12,7 @@ import { recordAudit } from '@/server/audit'
 import { recordUsage } from '@/server/usage'
 import { trackEvent } from '@/server/analytics'
 import { checkLimit, getPlanLimits } from '@/config/plans'
-import { limitExceeded, notFound } from '@/lib/errors'
+import { limitExceeded, notFound, toUserMessage } from '@/lib/errors'
 import { truncate } from '@/lib/text'
 import { parseDocument } from './parsers'
 import { validateDocumentFile } from './validation'
@@ -68,8 +68,17 @@ export async function createDocumentFromUpload(input: {
 
   // Path is derived from verified ids; the user's filename never reaches it.
   const path = documentPath(input.access.workspaceId, document.id, file.extension)
-  await getStorageProvider().upload({ path, body: input.buffer, mimeType: file.mimeType })
-  await db.update(documents).set({ storagePath: path }).where(eq(documents.id, document.id))
+  try {
+    await getStorageProvider().upload({ path, body: input.buffer, mimeType: file.mimeType })
+    await db.update(documents).set({ storagePath: path }).where(eq(documents.id, document.id))
+  } catch (error) {
+    // A failed upload must not leave an unprocessable document occupying quota.
+    // The unique path belongs only to this new upload, so cleanup cannot affect
+    // any earlier user document.
+    try { await getStorageProvider().delete(path) } catch { /* Provider may still be unavailable. */ }
+    await db.delete(documents).where(and(eq(documents.id, document.id), eq(documents.workspaceId, input.access.workspaceId)))
+    throw error
+  }
 
   await recordUsage(input.access.workspaceId, 'document_upload', 1, { userId: input.access.userId })
   await recordUsage(input.access.workspaceId, 'storage_bytes', file.size, { userId: input.access.userId })
@@ -169,7 +178,7 @@ export async function processDocument(documentId: string): Promise<void> {
       type: 'document_embedding',
     })
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Error desconocido'
+    const message = toUserMessage(err)
     await db
       .update(documents)
       .set({ processingStatus: 'failed', processingError: message.slice(0, 1000), updatedAt: new Date() })

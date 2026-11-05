@@ -17,7 +17,7 @@ import { trackEvent } from '@/server/analytics'
 import { checkLimit, getPlanLimits } from '@/config/plans'
 import { getServerEnv } from '@/config/env'
 import { AppError, limitExceeded, notFound, validation } from '@/lib/errors'
-import { formatDateEs } from '@/lib/time'
+import { formatMeetingDate } from '@/lib/meeting-date'
 import { parseTranscriptText } from '@/server/transcription'
 import type { WorkspaceAccess } from '@/server/permissions'
 import { persistTranscription } from './transcript'
@@ -48,7 +48,7 @@ export async function createMeeting(input: {
   const db = await getDb()
   const meetingDate = input.meetingDate ?? new Date()
   // §58 — the title is optional; the date is a better default than "Untitled".
-  const title = input.title?.trim() || `Reunión ${formatDateEs(meetingDate)}`
+  const title = input.title?.trim() || `Reunión ${formatMeetingDate(meetingDate)}`
 
   const rows = await db
     .insert(meetings)
@@ -198,6 +198,8 @@ export async function importTranscript(input: {
   meetingId: string
   transcript: string
 }): Promise<void> {
+  if (!input.transcript.trim()) throw validation('Pega el texto de la transcripción.')
+  if (input.transcript.length > 200_000) throw validation('La transcripción supera el máximo de 200.000 caracteres. Divídela en reuniones más cortas.')
   const db = await getDb()
   await getMeeting(input.meetingId, input.access.workspaceId)
 

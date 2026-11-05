@@ -1,7 +1,9 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import type { CitationView } from './citations'
+import { readAskStream } from './read-ask-stream'
 
 export type AskScope =
   | { type: 'workspace' }
@@ -19,23 +21,18 @@ export type AskTurn = {
   error?: string
 }
 
-type Frame =
-  | { type: 'status'; value: 'searching' | 'generating' }
-  | { type: 'citations'; value: CitationView[] }
-  | { type: 'delta'; value: string }
-  | { type: 'done'; conversationId: string }
-  | { type: 'error'; value: string }
-
 /**
  * §117 — Consumes the NDJSON stream from `/api/ask`.
  *
  * Frames are decoded line by line, so a chunk that splits mid-JSON is buffered
  * rather than dropped. Turns are kept locally; the server is the durable copy.
  */
-export function useAsk(scope: AskScope) {
+export function useAsk(scope: AskScope, initial?: { conversationId: string }) {
+  const router = useRouter()
   const [turns, setTurns] = React.useState<AskTurn[]>([])
   const [pending, setPending] = React.useState(false)
-  const conversationRef = React.useRef<string | null>(null)
+  const [conversationId, setConversationId] = React.useState<string | null>(initial?.conversationId ?? null)
+  const conversationRef = React.useRef<string | null>(initial?.conversationId ?? null)
   const abortRef = React.useRef<AbortController | null>(null)
 
   React.useEffect(() => () => abortRef.current?.abort(), [])
@@ -58,6 +55,7 @@ export function useAsk(scope: AskScope) {
 
       const controller = new AbortController()
       abortRef.current = controller
+      const timeout = setTimeout(() => controller.abort('timeout'), 135_000)
 
       try {
         const response = await fetch('/api/ask', {
@@ -77,74 +75,64 @@ export function useAsk(scope: AskScope) {
           return
         }
 
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
         let answer = ''
         let terminal = false
 
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-
-          const lines = buffer.split('\n')
-          buffer = lines.pop() ?? ''
-
-          for (const line of lines) {
-            if (line.trim() === '') continue
-            let frame: Frame
-            try {
-              frame = JSON.parse(line) as Frame
-            } catch {
-              continue
-            }
-
-            switch (frame.type) {
-              case 'status':
-                patch(id, { status: frame.value })
-                break
-              case 'citations':
-                patch(id, { citations: frame.value })
-                break
-              case 'delta':
-                answer += frame.value
-                patch(id, { answer })
-                break
-              case 'done':
-                terminal = true
-                conversationRef.current = frame.conversationId
-                patch(id, { status: 'done' })
-                break
-              case 'error':
-                terminal = true
-                patch(id, { status: 'error', error: frame.value })
-                break
-            }
+        for await (const frame of readAskStream(response.body)) {
+          if (abortRef.current !== controller) return
+          switch (frame.type) {
+            case 'status':
+              patch(id, { status: frame.value })
+              break
+            case 'citations':
+              patch(id, { citations: frame.value })
+              break
+            case 'delta':
+              answer += frame.value
+              patch(id, { answer })
+              break
+            case 'done':
+              terminal = true
+              conversationRef.current = frame.conversationId
+              setConversationId(frame.conversationId)
+              patch(id, { status: 'done' })
+              router.refresh()
+              break
+            case 'error':
+              terminal = true
+              patch(id, { status: 'error', error: frame.value })
+              break
           }
+          if (terminal) break
         }
 
         if (!terminal) patch(id, { status: 'error', error: 'La respuesta quedó incompleta. Intenta de nuevo.' })
-      } catch (err) {
-        if ((err as Error)?.name === 'AbortError') return
+      } catch {
+        if (controller.signal.aborted && controller.signal.reason !== 'timeout') return
+        if (controller.signal.reason === 'timeout') {
+          patch(id, { status: 'error', error: 'La respuesta tardó demasiado. Intenta de nuevo.' })
+          return
+        }
         patch(id, { status: 'error', error: 'Se interrumpió la conexión. Intenta de nuevo.' })
       } finally {
+        clearTimeout(timeout)
         if (abortRef.current === controller) {
           setPending(false)
           abortRef.current = null
         }
       }
     },
-    [patch, pending, scope],
+    [patch, pending, scope, router],
   )
 
   const reset = React.useCallback(() => {
     abortRef.current?.abort()
     abortRef.current = null
     conversationRef.current = null
+    setConversationId(null)
     setTurns([])
     setPending(false)
   }, [])
 
-  return { turns, pending, ask, reset }
+  return { turns, pending, ask, reset, conversationId }
 }

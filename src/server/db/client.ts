@@ -36,6 +36,11 @@ async function createPostgres(url: string): Promise<DbHandle> {
   const { Pool } = await import('pg')
   const { drizzle } = await import('drizzle-orm/node-postgres')
   const pool = new Pool(postgresConnectionConfig(url, getServerEnv().DATABASE_SSL_CA))
+  // A disconnected idle client emits an event instead of rejecting a query.
+  // Keep the process alive so the pool can replace that connection next time.
+  pool.on('error', (err: Error & { code?: string }) => {
+    console.error('[knowhub] idle database connection lost', { code: err.code ?? 'unknown' })
+  })
   const db = drizzle(pool, { schema })
   return {
     db,
@@ -87,25 +92,35 @@ async function createPglite(dataDir: string): Promise<DbHandle> {
 
 export async function getDbHandle(): Promise<DbHandle> {
   if (!globalThis.__knowhubDb) {
-    globalThis.__knowhubDb = (async () => {
+    const pending = (async () => {
       const env = getServerEnv()
       const handle = env.DATABASE_URL
         ? await createPostgres(env.DATABASE_URL)
         : await createPglite(env.PGLITE_DATA_DIR)
       // Migrations are cheap and idempotent; running them on first access keeps
       // `pnpm dev` and the test suite working without a manual step.
-      const { runMigrations } = await import('./migrate')
-      if (env.DATABASE_AUTO_MIGRATE === 'true') {
-        await runMigrations(handle)
-      } else {
-        const { migrations } = await import('./migrations')
-        const applied = await handle.raw('SELECT id FROM __knowhub_migrations')
-        const ids = new Set(applied.rows.map(row => row.id))
-        const pending = migrations.filter(m => (!m.postgresOnly || handle.driver === 'postgres') && !ids.has(m.id))
-        if (pending.length > 0) throw new Error('La base de datos tiene migraciones pendientes. Ejecuta pnpm db:migrate antes de publicar.')
+      try {
+        const { runMigrations } = await import('./migrate')
+        if (env.DATABASE_AUTO_MIGRATE === 'true') {
+          await runMigrations(handle)
+        } else {
+          const { migrations } = await import('./migrations')
+          const applied = await handle.raw('SELECT id FROM __knowhub_migrations')
+          const ids = new Set(applied.rows.map(row => row.id))
+          const pending = migrations.filter(m => (!m.postgresOnly || handle.driver === 'postgres') && !ids.has(m.id))
+          if (pending.length > 0) throw new Error('La base de datos tiene migraciones pendientes. Ejecuta pnpm db:migrate antes de publicar.')
+        }
+        return handle
+      } catch (err) {
+        await handle.close().catch(() => undefined)
+        throw err
       }
-      return handle
     })()
+    globalThis.__knowhubDb = pending
+    // Do not cache a rejected initialization forever after a provider outage.
+    void pending.catch(() => {
+      if (globalThis.__knowhubDb === pending) globalThis.__knowhubDb = undefined
+    })
   }
   return globalThis.__knowhubDb
 }

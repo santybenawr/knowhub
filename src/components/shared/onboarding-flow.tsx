@@ -1,18 +1,19 @@
 'use client'
 
 import * as React from 'react'
-import Link from 'next/link'
-import { ArrowLeft, ArrowRight, Check, FileText, Mic, NotebookPen } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/field'
 import { Logo } from './logo'
+import { GettingStartedGuide } from './getting-started-guide'
 import { cn } from '@/lib/utils'
+import { isPublicBeta } from '@/lib/release'
 import type { ActionResult } from '@/lib/action-result'
 
 const PURPOSES = [
   { id: 'estudio', label: 'Estudio', description: 'Clases, apuntes y lecturas' },
   { id: 'trabajo', label: 'Trabajo', description: 'Reuniones y documentos del día a día' },
-  { id: 'empresa', label: 'Empresa', description: 'Equipos y proyectos compartidos' },
+  { id: 'empresa', label: 'Empresa', description: 'Información y proyectos de mi empresa' },
   { id: 'investigacion', label: 'Investigación', description: 'Fuentes, entrevistas y hallazgos' },
   { id: 'personal', label: 'Personal', description: 'Ideas y conocimiento propio' },
 ]
@@ -20,20 +21,35 @@ const PURPOSES = [
 export function OnboardingFlow({
   name,
   onComplete,
+  onSkip,
 }: {
   name: string
   onComplete: (input: { purpose: string; projectName: string }) => Promise<ActionResult<undefined>>
+  onSkip: () => Promise<ActionResult<undefined>>
 }) {
   const [step, setStep] = React.useState(0)
   const [purpose, setPurpose] = React.useState('trabajo')
   const [projectName, setProjectName] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
   const [pending, startTransition] = React.useTransition()
+  const stepHeading = React.useRef<HTMLHeadingElement>(null)
+
+  React.useEffect(() => {
+    stepHeading.current?.focus()
+  }, [step])
 
   const finish = () => {
     setError(null)
     startTransition(async () => {
       const result = await onComplete({ purpose, projectName })
+      if (result && !result.ok) setError(result.error)
+    })
+  }
+
+  const skip = () => {
+    setError(null)
+    startTransition(async () => {
+      const result = await onSkip()
       if (result && !result.ok) setError(result.error)
     })
   }
@@ -48,8 +64,8 @@ export function OnboardingFlow({
         </div>
       </div>
 
-      <ol className="mb-7 flex gap-2" aria-label="Progreso">
-        {[0, 1, 2].map((index) => (
+      <ol className="mb-7 flex gap-2" aria-label="Progreso de configuración">
+        {['Tu objetivo', 'Proyecto opcional', 'Guía de uso'].map((label, index) => (
           <li
             key={index}
             className={cn(
@@ -57,21 +73,27 @@ export function OnboardingFlow({
               index <= step ? 'bg-brand' : 'bg-surface-muted',
             )}
             aria-current={index === step ? 'step' : undefined}
-          />
+          >
+            <span className="sr-only">Paso {index + 1}: {label}</span>
+          </li>
         ))}
       </ol>
 
       <div className="surface-card p-6">
+        <p className="mb-2 text-xs font-medium text-ink-faint" aria-live="polite">Paso {step + 1} de 3</p>
+        <h2 ref={stepHeading} tabIndex={-1} className="mb-2 text-lg font-semibold text-ink outline-none">
+          {['¿Para qué quieres usar KnowHub?', 'Crea tu primer proyecto', 'Cómo usar KnowHub'][step]}
+        </h2>
         {step === 0 ? (
           <fieldset>
-            <legend className="text-lg font-semibold text-ink">¿Para qué quieres usar KnowHub?</legend>
+            <legend className="sr-only">¿Para qué quieres usar KnowHub?</legend>
             <p className="mt-1 text-sm text-ink-muted">Nos ayuda a ordenar tu espacio inicial.</p>
             <div className="mt-5 space-y-2">
               {PURPOSES.map((option) => (
                 <label
                   key={option.id}
                   className={cn(
-                    'flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors',
+                    'flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2',
                     purpose === option.id
                       ? 'border-brand bg-brand-soft'
                       : 'border-border-subtle hover:border-border-strong',
@@ -106,7 +128,6 @@ export function OnboardingFlow({
 
         {step === 1 ? (
           <div>
-            <h2 className="text-lg font-semibold text-ink">Crea tu primer proyecto</h2>
             <p className="mt-1 text-sm text-ink-muted">
               Un proyecto agrupa documentos, notas y reuniones de un mismo tema. Puedes omitir este paso.
             </p>
@@ -117,7 +138,7 @@ export function OnboardingFlow({
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   placeholder="Proyecto Omega"
-                  autoFocus
+                  maxLength={120}
                 />
               </Field>
             </div>
@@ -126,44 +147,30 @@ export function OnboardingFlow({
 
         {step === 2 ? (
           <div>
-            <h2 className="text-lg font-semibold text-ink">Todo listo</h2>
-            <p className="mt-1 text-sm text-ink-muted">Así es como entra la información a KnowHub:</p>
-            <ul className="mt-5 space-y-2.5">
-              {[
-                { icon: Mic, label: 'Grabar reunión', description: 'La transcribimos y extraemos decisiones' },
-                { icon: FileText, label: 'Subir documento', description: 'PDF, Word, Markdown o texto' },
-                { icon: NotebookPen, label: 'Crear nota', description: 'Se indexa automáticamente' },
-              ].map((item) => (
-                <li key={item.label} className="flex items-start gap-3 rounded-lg bg-surface-muted p-3">
-                  <item.icon className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-                  <span>
-                    <span className="block font-medium text-ink">{item.label}</span>
-                    <span className="block text-xs text-ink-muted">{item.description}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {error ? (
-              <p className="mt-4 text-sm text-record" role="alert">
-                {error}
-              </p>
-            ) : null}
+            <p className="mb-4 text-sm text-ink-muted">Tres pasos para empezar con tu propia información.</p>
+            <GettingStartedGuide />
+            <p className="mt-4 text-xs text-ink-muted">
+              La guía completa queda en «Ayuda y guía», también en el móvil.
+              {isPublicBeta() ? ' Guarda tu contraseña: la recuperación por correo aún no está disponible.' : ''}
+            </p>
           </div>
         ) : null}
 
-        <div className="mt-7 flex items-center justify-between gap-3">
+        {error ? <p className="mt-4 text-sm text-record" role="alert">{error}</p> : null}
+
+        <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
           {step > 0 ? (
             <Button variant="ghost" onClick={() => setStep((s) => s - 1)} disabled={pending}>
               <ArrowLeft className="size-4" /> Atrás
             </Button>
           ) : (
-            <Link href="/dashboard" className="text-sm text-ink-faint hover:text-ink hover:underline">
+            <Button variant="ghost" onClick={skip} loading={pending}>
               Omitir
-            </Link>
+            </Button>
           )}
 
           {step < 2 ? (
-            <Button onClick={() => setStep((s) => s + 1)}>
+            <Button onClick={() => setStep((s) => s + 1)} disabled={pending}>
               Continuar <ArrowRight className="size-4" />
             </Button>
           ) : (

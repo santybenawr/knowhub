@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { requirePageContext } from '@/server/auth/guard'
 import { requireDocumentAccess } from '@/server/permissions'
 import { softDeleteDocument } from '@/server/documents'
@@ -22,6 +21,7 @@ export async function reprocessDocumentAction(documentId: string): Promise<Actio
       type: 'document_processing',
     })
     revalidatePath(`/documents/${documentId}`)
+    revalidatePath('/library')
     return ok()
   } catch (err) {
     return fail(toUserMessage(err))
@@ -37,5 +37,7 @@ export async function deleteDocumentAction(documentId: string): Promise<ActionRe
     return fail(toUserMessage(err))
   }
   revalidatePath('/library')
-  redirect('/library')
+  revalidatePath('/dashboard')
+  revalidatePath('/projects', 'layout')
+  return ok()
 }

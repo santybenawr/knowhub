@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { requirePageContext } from '@/server/auth/guard'
 import { assertProjectInWorkspace, requireNoteAccess } from '@/server/permissions'
 import { createNote, softDeleteNote, updateNote } from '@/server/notes'
@@ -25,6 +24,8 @@ export async function createNoteAction(input: {
       tags: input.tags ?? [],
     })
     revalidatePath('/library')
+    revalidatePath('/dashboard')
+    revalidatePath('/projects', 'layout')
     return ok({ noteId })
   } catch (err) {
     return fail(toUserMessage(err))
@@ -55,6 +56,9 @@ export async function updateNoteAction(input: {
       ...(projectId !== undefined ? { projectId } : {}),
       ...(input.tags !== undefined ? { tags: input.tags } : {}),
     })
+    revalidatePath('/library')
+    revalidatePath('/dashboard')
+    revalidatePath('/projects', 'layout')
     return ok()
   } catch (err) {
     return fail(toUserMessage(err))
@@ -70,5 +74,7 @@ export async function deleteNoteAction(noteId: string): Promise<ActionResult<und
     return fail(toUserMessage(err))
   }
   revalidatePath('/library')
-  redirect('/library')
+  revalidatePath('/dashboard')
+  revalidatePath('/projects', 'layout')
+  return ok()
 }

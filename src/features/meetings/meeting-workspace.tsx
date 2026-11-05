@@ -1,11 +1,13 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import { AlertTriangle, CalendarClock, CheckCircle2, CircleHelp, ListTodo, RefreshCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { StageList, type StageState } from '@/components/ui/status'
+import { useToast } from '@/components/ui/toast'
 import { formatTimestamp } from '@/lib/time'
 import type { ActionResult } from '@/lib/action-result'
 import { AskPanel } from '@/features/ask/ask-panel'
@@ -77,6 +79,7 @@ export function MeetingWorkspace({
   onRenameSpeaker,
   onRetryStage,
 }: Props) {
+  const router = useRouter()
   const playerRef = React.useRef<AudioPlayerHandle>(null)
   const [currentTime, setCurrentTime] = React.useState(startAt ?? 0)
   const [tab, setTab] = React.useState(startAt !== null || !analysis ? 'transcripcion' : 'resumen')
@@ -119,7 +122,38 @@ export function MeetingWorkspace({
   const stillProcessing =
     statuses.transcription === 'processing' ||
     statuses.transcription === 'pending' ||
-    statuses.analysis === 'processing'
+    statuses.analysis === 'processing' ||
+    (statuses.transcription === 'completed' && statuses.analysis === 'pending') ||
+    statuses.embedding === 'processing' ||
+    (statuses.transcription === 'completed' && statuses.embedding === 'pending')
+
+  const statusKey = `${statuses.transcription}:${statuses.analysis}:${statuses.embedding}`
+  React.useEffect(() => {
+    if (!stillProcessing) return
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout>
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/meetings/${meetingId}/status`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+        if (response.ok) {
+          const next = await response.json() as {
+            transcriptionStatus: string; analysisStatus: string; embeddingStatus: string
+          }
+          const nextKey = `${next.transcriptionStatus}:${next.analysisStatus}:${next.embeddingStatus}`
+          if (!controller.signal.aborted && nextKey !== statusKey) router.refresh()
+        }
+      } catch {
+        // A temporary connection failure must not discard the visible transcript.
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(poll, 2500)
+      }
+    }
+    timer = setTimeout(poll, 1500)
+    return () => { controller.abort(); clearTimeout(timer) }
+  }, [meetingId, router, statusKey, stillProcessing])
 
   return (
     <div className="space-y-5">
@@ -186,14 +220,14 @@ export function MeetingWorkspace({
           <h2 className="mb-3 text-sm font-semibold text-ink">Procesando la reunión</h2>
           <StageList
             stages={[
-              { label: 'Grabación guardada', state: 'completed' },
-              { label: 'Transcribiendo', state: statuses.transcription },
+              { label: audioUrl ? 'Grabación guardada' : 'Transcripción guardada', state: 'completed' },
+              { label: audioUrl ? 'Transcribiendo' : 'Preparando transcripción', state: statuses.transcription },
               { label: 'Analizando contenido', state: statuses.analysis },
               { label: 'Preparando búsqueda', state: statuses.embedding },
             ]}
           />
           <p className="mt-4 text-xs text-ink-muted">
-            Puedes seguir usando KnowHub mientras tanto. Te avisamos cuando esté lista.
+            Esta página se actualiza automáticamente. Puedes seguir usando KnowHub mientras tanto.
           </p>
         </div>
       ) : null}
@@ -231,6 +265,7 @@ export function MeetingWorkspace({
 
         <TabsContent value="transcripcion">
           <TranscriptView
+            hasAudio={Boolean(audioUrl)}
             segments={segments}
             speakers={speakers}
             currentTime={currentTime}
@@ -252,7 +287,7 @@ export function MeetingWorkspace({
             }
             onCitationClick={onCitationClick}
             emptyTitle="Pregunta sobre esta reunión"
-            emptyDescription="Respondemos solo con lo que se dijo, y te llevamos al minuto exacto."
+            emptyDescription="Respondemos con el contenido de esta reunión y te llevamos al fragmento citado."
           />
         </TabsContent>
       </Tabs>
@@ -491,13 +526,24 @@ function RetryButton({
   onRetry: (input: { meetingId: string; stage: 'transcription' | 'analysis' | 'embedding' }) => Promise<ActionResult<undefined>>
   children: React.ReactNode
 }) {
+  const router = useRouter()
+  const { notify } = useToast()
   const [pending, startTransition] = React.useTransition()
   return (
     <Button
       size="sm"
       variant="secondary"
       loading={pending}
-      onClick={() => startTransition(() => void onRetry({ meetingId, stage }))}
+      onClick={() => startTransition(async () => {
+        try {
+          const result = await onRetry({ meetingId, stage })
+          if (!result.ok) { notify(result.error, 'error'); return }
+          notify('Reintento iniciado. El estado se actualizará aquí.', 'success')
+          router.refresh()
+        } catch {
+          notify('No pudimos iniciar el reintento. Revisa tu conexión e inténtalo de nuevo.', 'error')
+        }
+      })}
     >
       <RefreshCw /> {children}
     </Button>

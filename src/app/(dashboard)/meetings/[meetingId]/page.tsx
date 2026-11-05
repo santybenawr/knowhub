@@ -14,7 +14,8 @@ import {
 import { findRelated } from '@/server/search'
 import { isTranscriptionMocked } from '@/server/transcription'
 import { meetingAnalysisSchema } from '@/validations/meeting-analysis'
-import { formatDateEs, formatDurationHuman, parseTimeParam } from '@/lib/time'
+import { formatDurationHuman, parseTimeParam } from '@/lib/time'
+import { formatMeetingDate } from '@/lib/meeting-date'
 import { Badge } from '@/components/ui/badge'
 import { MeetingWorkspace, type MeetingAnalysisView } from '@/features/meetings/meeting-workspace'
 import { RelatedKnowledge } from '@/components/shared/related-knowledge'
@@ -91,7 +92,7 @@ export default async function MeetingPage({ params, searchParams }: Params) {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold tracking-tight text-ink">{meeting.title}</h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
-              <span>{formatDateEs(meeting.meetingDate)}</span>
+              <span>{formatMeetingDate(meeting.meetingDate)}</span>
               {meeting.durationSeconds ? <span>{formatDurationHuman(meeting.durationSeconds)}</span> : null}
               {speakers.length > 0 ? <span>{speakers.length} hablantes</span> : null}
               {meeting.status !== 'ready' ? (

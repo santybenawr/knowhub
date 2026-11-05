@@ -16,6 +16,8 @@ import { RelatedKnowledge } from '@/components/shared/related-knowledge'
 import { AskPanel } from '@/features/ask/ask-panel'
 import { DocumentActions } from '@/features/documents/document-actions'
 import { DocumentContent } from '@/features/documents/document-content'
+import { ProcessingRefresh } from '@/features/library/processing-refresh'
+import { documentFormatLabel } from '@/lib/document-formats'
 import { deleteDocumentAction, reprocessDocumentAction } from '../actions'
 
 type Params = {
@@ -60,9 +62,11 @@ export default async function DocumentPage({ params, searchParams }: Params) {
     : null
 
   const processing = document.processingStatus === 'pending' || document.processingStatus === 'processing'
+  const indexing = document.processingStatus === 'completed' && ['pending', 'processing'].includes(document.embeddingStatus)
 
   return (
     <div className="space-y-6">
+      <ProcessingRefresh active={processing || indexing} />
       <div>
         <Link
           href="/library"
@@ -73,10 +77,11 @@ export default async function DocumentPage({ params, searchParams }: Params) {
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-ink">{document.title}</h1>
+            <h1 className="break-words text-2xl font-bold tracking-tight text-ink">{document.title}</h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-muted">
               <span>{formatDateEs(document.createdAt)}</span>
               <span>{formatBytes(document.fileSize)}</span>
+              <Badge tone="outline">{documentFormatLabel(document.mimeType) ?? 'Documento'}</Badge>
               {document.pageCount ? <span>{document.pageCount} páginas</span> : null}
               {document.processingStatus === 'failed' ? <Badge tone="record">Falló</Badge> : null}
               {processing ? <Badge tone="warning">Procesando…</Badge> : null}
@@ -100,7 +105,7 @@ export default async function DocumentPage({ params, searchParams }: Params) {
         </div>
       </div>
 
-      {processing ? (
+      {processing || indexing ? (
         <div className="surface-card p-5">
           <h2 className="mb-3 text-sm font-semibold text-ink">Procesando el documento</h2>
           <StageList
@@ -131,7 +136,7 @@ export default async function DocumentPage({ params, searchParams }: Params) {
         </div>
       ) : null}
 
-      <Tabs defaultValue={document.summary ? 'resumen' : 'contenido'}>
+      <Tabs key={chunk ?? documentId} defaultValue={chunk ? 'contenido' : document.summary ? 'resumen' : 'contenido'}>
         <TabsList>
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="contenido">Contenido</TabsTrigger>

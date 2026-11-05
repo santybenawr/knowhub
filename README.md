@@ -9,14 +9,20 @@ que puedes recuperar cuando lo necesitas — siempre con la fuente a un clic.
 
 ## Overview
 
-Guardar información no significa recordarla. KnowHub toma documentos, notas y
-grabaciones de reuniones y los convierte en una biblioteca consultable: busca por
-palabras o por significado, pregunta en lenguaje natural, y vuelve a la página
-del documento o al segundo exacto del audio donde se dijo.
+KnowHub organiza documentos, notas y transcripciones de reuniones en una
+biblioteca consultable, con respuestas enlazadas a sus fuentes.
 
-La función insignia son las **reuniones**: grabas, y KnowHub transcribe, separa
-hablantes cuando el proveedor lo permite, marca los tiempos, extrae decisiones y
-pendientes, y deja todo enlazado a su evidencia.
+La **beta pública** se publicó en
+[knowhub-app-sacramented.vercel.app](https://knowhub-app-sacramented.vercel.app).
+Su alcance actual es registro abierto, cuentas personales, archivos de hasta
+4 MiB, notas y transcripciones pegadas. Usa respuestas extractivas por palabras;
+**no tiene IA externa, transcripción de audio, correos ni pagos activados**.
+
+La revisión del 05/11/2026 añade correcciones operativas, guía de registro y
+ayuda en `/help`. El estado de validación, la incidencia remota y la publicación
+de esta revisión se registran en [la auditoría actual](docs/mvp-audit-2026-11-05.md).
+El [registro del lanzamiento inicial](docs/public-beta-launch.md) conserva la
+evidencia de octubre; no acredita por sí solo la disponibilidad actual.
 
 ## MVP de presentación · septiembre de 2026
 
@@ -32,44 +38,35 @@ como un modelo de IA conectado. Las citas permiten revisar el texto, pero no
 garantizan por sí solas que un fragmento responda completamente a la pregunta.
 
 Ver [auditoría, limitaciones y guion de demo](docs/mvp-audit-2026-09-22.md).
-Suscripciones, App Store y despliegue público de la aplicación todavía requieren
-implementación/configuración y validación. La landing publicada es independiente.
+Suscripciones y App Store siguen pendientes. La beta con cuentas, la landing y
+esta demo de presentación son entornos independientes.
 
 ## Features
 
-### Beta pública en preparación
+### Beta pública con cuentas
 
-El alcance de lanzamiento confirmado incluye registro abierto, cuentas personales,
-documentos, notas y transcripciones pegadas. El estado, límites y pasos de
-publicación están en [public-beta-launch](docs/public-beta-launch.md).
-Validación del perfil: `pnpm test:beta`. La demo pública anterior sigue siendo
-un entorno ficticio independiente.
+- Documentos PDF con texto, DOCX, TXT y Markdown, con límite de 4 MiB.
+- Notas con autoguardado y reuniones mediante transcripción pegada.
+- Biblioteca, proyectos, filtros combinables y consultas con citas.
+- Respuestas extractivas, sin comprensión semántica de un proveedor externo.
+- Perfil, apariencia clara/oscura y navegación móvil.
 
-**Captura**
-- Grabación de reuniones desde el navegador (`MediaRecorder`, con pausa/reanudar)
-- Subida de grabaciones existentes (webm, m4a, mp3, wav, ogg, mp4)
-- Importación de transcripciones en texto (con o sin marcas de tiempo)
-- Documentos: PDF, DOCX, Markdown y texto plano
-- Notas con autoguardado
+La revisión actual incorpora guía de uso, formatos visibles en la biblioteca,
+lectura de TXT en codificaciones habituales, guardado protegido al navegar,
+actualización del procesamiento e historial de conversaciones reabrible.
+La validación remota de esa revisión sigue el estado de la auditoría actual.
 
-**Comprensión**
-- Transcripción con segmentos y timestamps reales
-- Renombrado de hablantes sin tocar la transcripción original
-- Análisis de reunión: resumen, temas, decisiones, pendientes, preguntas abiertas
-- Responsable y fecha **solo si se dijeron** — nunca inventados
+### Capacidades del repositorio fuera del perfil beta
 
-**Recuperación**
-- Búsqueda híbrida: full-text de PostgreSQL + similitud vectorial (pgvector)
-- Preguntar a KnowHub sobre todo el workspace, un proyecto, un documento o una reunión
-- Progreso en streaming; respuesta entregada tras validar los identificadores de sus citas
-- Cada cita abre su evidencia: la página del documento o el audio en el segundo citado
-- Contenido relacionado por similitud semántica
+El código también contiene grabación mediante `MediaRecorder`, subida de audio,
+adaptadores de IA y transcripción, búsqueda vectorial y workspaces con roles.
+Con proveedores locales, audio y respuestas usan ejemplos o reglas explícitas;
+la presencia de estos módulos **no significa que los servicios reales estén
+configurados o validados**. La beta bloquea grabación/subida de audio e invitaciones.
 
-**Organización y equipo**
-- Workspaces (personal, equipo, educación, empresa) con roles OWNER/ADMIN/MEMBER/VIEWER
-- Proyectos que agrupan documentos, notas y reuniones
-- Invitaciones por enlace, uso por plan, registro de auditoría
-- Modo claro / oscuro / sistema, PWA instalable, diseño móvil propio
+El procesamiento conserva las fuentes y enlaza decisiones y pendientes a su
+evidencia. La identificación de hablantes y los tiempos reales dependen del
+proveedor o del texto importado; no se inventan responsables ni fechas.
 
 ## Architecture
 
@@ -79,7 +76,7 @@ Monolito modular sobre Next.js 16 (App Router) y PostgreSQL.
 Documentos ─┐
 Notas ──────┼──→ chunks + embeddings ──→ Búsqueda híbrida ──→ RAG ──→ Respuesta + citas
 Reuniones ──┘                                                            │
-                                                                         └─→ audio en el segundo citado
+                                                                         └─→ fuente original
 ```
 
 El desarrollo sigue **Spec-Driven Development**: primero se acuerda qué debe
@@ -139,19 +136,22 @@ Las variables críticas:
 | --- | --- |
 | `DATABASE_URL` | Sin definir: PGlite embebido. Definida: tu PostgreSQL. |
 | `AUTH_SECRET` | **Obligatoria en producción** (mínimo 32 caracteres). |
-| `OPENAI_API_KEY` | Activa el proveedor de IA real (análisis, embeddings, respuestas). |
-| `TRANSCRIPTION_API_KEY` | Activa la transcripción real. Si falta, usa `OPENAI_API_KEY`. |
-| `STORAGE_PROVIDER` | `local` (por defecto) o `supabase`. |
+| `OPENAI_API_KEY` | Credencial para IA real; `AI_PROVIDER=mock` mantiene el proveedor local. |
+| `TRANSCRIPTION_API_KEY` | Credencial de transcripción; si falta, puede usar `OPENAI_API_KEY`. El proveedor explícito tiene prioridad. |
+| `STORAGE_PROVIDER` | `local`, `supabase` o `vercel-blob`; la beta usa Blob privado. |
+| `NEXT_PUBLIC_KNOWHUB_BETA` | `true` activa el alcance limitado de la beta al compilar y ejecutar. |
+| `DATABASE_AUTO_MIGRATE` | `true` aplica migraciones al iniciar; `false` exige aplicarlas previamente. |
 | `ENABLE_DEMO_DATA` | Habilita `pnpm db:seed`. Nunca en producción. |
 
 Nunca expongas al navegador `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`,
-`TRANSCRIPTION_API_KEY` ni `STRIPE_SECRET_KEY`.
+`TRANSCRIPTION_API_KEY`, `BLOB_READ_WRITE_TOKEN` ni `STRIPE_SECRET_KEY`.
 
 ## Database
 
 PostgreSQL con la extensión `vector`. El esquema vive en
 `src/server/db/schema.ts`; las migraciones son módulos TypeScript en
-`src/server/db/migrations/` y se aplican solas en el primer acceso.
+`src/server/db/migrations/`. Se aplican en el primer acceso cuando
+`DATABASE_AUTO_MIGRATE=true`; con `false`, el arranque comprueba que ya estén aplicadas.
 
 Sin `DATABASE_URL`, KnowHub usa [PGlite](https://pglite.dev): PostgreSQL real
 compilado a WASM, con pgvector y búsqueda de texto completo. No es un mock —
@@ -171,8 +171,9 @@ PostgreSQL real.
 El audio y los documentos son **privados**. El proveedor local guarda los
 archivos fuera de `public/` y los sirve por `/api/storage/[...path]` validando
 una firma HMAC con expiración. `SupabaseStorageProvider` usa las URLs firmadas
-de Supabase. En ambos casos la URL se emite solo después de verificar la
-pertenencia al workspace, y nunca se persiste.
+de Supabase. La beta usa `VercelBlobStorageProvider` sobre un almacén privado.
+Las URLs se emiten solo después de verificar pertenencia al workspace y nunca
+se persisten como enlaces públicos permanentes.
 
 ## Authentication
 
@@ -190,23 +191,32 @@ Subida con arrastrar y soltar, validación por *magic bytes* (no por la extensi�
 ni por el MIME declarado), límite de tamaño configurable. El pipeline extrae el
 texto, lo divide en fragmentos preservando la página, genera un resumen y crea
 los embeddings. Un PDF escaneado sin capa de texto se rechaza explícitamente:
-KnowHub todavía no hace OCR.
+KnowHub todavía no hace OCR. TXT/Markdown admiten UTF-8, UTF-16 con BOM y
+Windows-1252; el contenido binario se rechaza. La biblioteca distingue el formato
+y permite combinarlo con el proyecto. Cambiar la extensión no convierte el archivo.
 
 ## Notes
 
 Editor con autoguardado. Cada nota se divide e indexa igual que un documento, así
-que aparece en la búsqueda y puede citarse en una respuesta.
+que aparece en la búsqueda y puede citarse en una respuesta. Las notas con solo
+título también se indexan; las vacías no quedan esperando un trabajo inexistente.
+La navegación por enlaces internos espera el guardado pendiente y el navegador
+avisa al cerrar con cambios sin guardar. Las ediciones durante indexación se
+agrupan en un trabajo posterior, sin reemplazar el índice con una versión obsoleta.
 
 ## Meetings
 
-Tres formas de crear una reunión:
+En la **beta pública**, se crean reuniones pegando una transcripción. Fuera de
+ese perfil, el repositorio ofrece tres entradas:
 
 1. **Grabar** desde el navegador.
 2. **Subir** una grabación existente.
 3. **Importar** una transcripción en texto.
 
-La tercera no requiere ningún proveedor externo y ejecuta el mismo pipeline
-completo, incluidos hablantes, timestamps, análisis e indexación.
+La tercera conserva el texto aportado y puede funcionar sin proveedores externos.
+Si no hay tiempos en la transcripción, no representan posiciones reales de audio.
+La pantalla consulta el progreso y actualiza los resultados al terminar. Un
+reintento de importación reutiliza la reunión ya creada.
 
 ### Recording
 
@@ -248,13 +258,16 @@ Pregunta → embedding → búsqueda híbrida (70% semántica / 30% palabras)
 ```
 
 Si no hay evidencia suficiente, KnowHub lo dice en lugar de responder con
-conocimiento externo.
+conocimiento externo. Las conversaciones guardadas se reabren con sus citas;
+si su recurso de origen se elimina, el historial sigue siendo consultable pero
+la conversación no se amplía silenciosamente a toda la biblioteca.
 
 ## Testing
 
 ```bash
-pnpm test        # 150 pruebas: unitarias e integración, sin red ni credenciales
-pnpm test:e2e    # 5 flujos end-to-end con Playwright
+pnpm test        # Unitarias e integración, sin red ni credenciales
+pnpm test:e2e    # Recorridos de navegador con datos aislados
+pnpm test:beta   # Perfil beta aislado; KNOWHUB_BETA_URL permite apuntar a remoto
 ```
 
 Las pruebas de integración corren contra un PostgreSQL en memoria con pgvector,
@@ -272,14 +285,15 @@ pnpm verify   # lint + typecheck + test + build
 
 ## Deployment
 
-1. Provisiona PostgreSQL 15+ con la extensión `vector` (Supabase sirve).
-2. Define `DATABASE_URL`, `AUTH_SECRET` y `NEXT_PUBLIC_APP_URL` (https).
-3. Define `OPENAI_API_KEY` y `TRANSCRIPTION_API_KEY` para los proveedores reales.
-4. Para almacenamiento gestionado: `STORAGE_PROVIDER=supabase` y crea el bucket
-   **privado** indicado en `SUPABASE_STORAGE_BUCKET`.
-5. `pnpm build` y despliega (Vercel u otro host de Node).
+Para actualizar la beta existente, seguir [public-beta-launch](docs/public-beta-launch.md):
+verificar `sacramented/knowhub-app`, reutilizar PostgreSQL y Blob privados,
+configurar variables sin exponer secretos, aplicar migraciones pendientes y
+preparar un despliegue de producción sin asignar el dominio. Validar primero
+registro, persistencia, archivos y aislamiento; promover solo después.
 
-Las migraciones se aplican solas en el primer arranque.
+No ejecutar `db:seed` ni `db:reset` en producción. La revisión del 05/11/2026
+no añade migraciones. Los resultados de compilación local no sustituyen la
+comprobación de la conexión real ni el recorrido remoto.
 
 ## Known limitations
 
@@ -289,8 +303,8 @@ Las migraciones se aplican solas en el primer arranque.
 - **Diarización**: depende del proveedor de transcripción. Whisper no la ofrece,
   así que los segmentos llegan sin hablante en lugar de con uno inventado.
 - **OCR**: un PDF escaneado sin capa de texto se rechaza. No está en el MVP.
-- **Correo**: no hay transporte configurado. Los enlaces de recuperación e
-  invitación se entregan en pantalla para que tú los compartas.
+- **Correo**: no hay transporte configurado. Recuperación e invitaciones están
+  deshabilitadas en la beta; los enlaces en pantalla corresponden al desarrollo.
 - **Facturación**: la abstracción existe, pero sin credenciales de Stripe la
   aplicación simplemente no ofrece pagos. No se simulan cobros.
 - **Búsqueda multiidioma**: el índice de texto completo usa la configuración

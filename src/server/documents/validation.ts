@@ -2,6 +2,7 @@ import { getServerEnv } from '@/config/env'
 import { unsupported, validation } from '@/lib/errors'
 import { formatBytes } from '@/lib/time'
 import { documentUploadLimitMb, isPublicBeta } from '@/lib/release'
+import { decodeDocumentText } from './decode-text'
 
 /**
  * §125/§196 — File validation.
@@ -35,6 +36,10 @@ function startsWith(buffer: Buffer, bytes: number[]): boolean {
 
 /** Returns the detected MIME, or null when the bytes match nothing known. */
 export function sniffMimeType(buffer: Buffer, filename: string): string | null {
+  // UTF-16 LE begins FF FE, which otherwise resembles an MPEG audio header.
+  if ((startsWith(buffer, [0xff, 0xfe]) || startsWith(buffer, [0xfe, 0xff])) && looksLikeText(buffer)) {
+    return extensionOf(filename) === 'md' ? 'text/markdown' : 'text/plain'
+  }
   if (startsWith(buffer, [0x25, 0x50, 0x44, 0x46])) return 'application/pdf' // %PDF
   // DOCX is a ZIP container; the extension disambiguates it from other zips.
   if (startsWith(buffer, [0x50, 0x4b, 0x03, 0x04]) || startsWith(buffer, [0x50, 0x4b, 0x05, 0x06])) {
@@ -56,15 +61,12 @@ export function sniffMimeType(buffer: Buffer, filename: string): string | null {
 }
 
 function looksLikeText(buffer: Buffer): boolean {
-  const sample = buffer.subarray(0, 4096)
-  if (sample.length === 0) return true
-  let suspicious = 0
-  for (const byte of sample) {
-    // Control characters other than tab/LF/CR mean this is not plain text.
-    if (byte === 0) return false
-    if (byte < 9 || (byte > 13 && byte < 32)) suspicious++
+  try {
+    decodeDocumentText(buffer)
+    return true
+  } catch {
+    return false
   }
-  return suspicious / sample.length < 0.05
 }
 
 export function validateDocumentFile(input: {
@@ -85,7 +87,10 @@ export function validateDocumentFile(input: {
   }
 
   const detected = sniffMimeType(input.buffer, input.filename)
-  if (!detected) throw unsupported('No pudimos reconocer el contenido de este archivo.')
+  if (!detected) {
+    if (extension === 'txt' || extension === 'md') decodeDocumentText(input.buffer)
+    throw unsupported('No pudimos reconocer el contenido de este archivo.')
+  }
 
   const expected: Record<string, string[]> = {
     pdf: ['application/pdf'],

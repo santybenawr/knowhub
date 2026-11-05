@@ -55,7 +55,7 @@
     "react-hook-form": "^7.85.0",
     "tailwind-merge": "^3.6.0",
     "unpdf": "^1.8.1",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

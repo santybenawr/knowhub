@@ -1,9 +1,9 @@
 import { and, asc, desc, eq, isNull } from 'drizzle-orm'
-import { getDb } from '@/server/db/client'
+import { getDb, rawQuery } from '@/server/db/client'
 import { conversations, messageSources, messages, type ConversationScope } from '@/server/db/schema'
 import { notFound } from '@/lib/errors'
 import { truncate } from '@/lib/text'
-import type { Citation } from '@/server/ai/rag'
+import { citationHref, citationLabel, type Citation } from '@/server/ai/rag'
 import type { WorkspaceAccess } from '@/server/permissions'
 
 /** §118 — Conversation history, scoped to a workspace and owned by one user. */
@@ -86,24 +86,60 @@ export async function getMessages(conversationId: string, access: WorkspaceAcces
   const rows = await db
     .select()
     .from(messages)
-    .where(eq(messages.conversationId, conversationId))
+    .where(and(eq(messages.conversationId, conversationId), eq(messages.workspaceId, access.workspaceId)))
     .orderBy(asc(messages.createdAt))
 
-  const sources = await db
-    .select()
-    .from(messageSources)
-    .where(eq(messageSources.workspaceId, access.workspaceId))
+  const sources = rows.length ? await rawQuery<{
+    message_id: string; citation_index: number; kind: 'document' | 'note' | 'meeting'
+    chunk_id: string; resource_id: string; resource_title: string; resource_date: string
+    content: string; page_number: number | null; start_seconds: number | null; end_seconds: number | null
+    relevance_score: number
+  }>(`
+    SELECT s.message_id, s.citation_index, 'document'::text AS kind,
+      c.id AS chunk_id, d.id AS resource_id, d.title AS resource_title,
+      d.created_at AS resource_date, c.content, c.page_number,
+      NULL::double precision AS start_seconds, NULL::double precision AS end_seconds, s.relevance_score
+    FROM message_sources s JOIN messages m ON m.id = s.message_id
+    JOIN document_chunks c ON c.id = s.document_chunk_id JOIN documents d ON d.id = c.document_id
+    WHERE m.conversation_id = $1 AND m.workspace_id = $2 AND s.workspace_id = $2
+      AND c.workspace_id = $2 AND d.workspace_id = $2 AND d.deleted_at IS NULL
+    UNION ALL
+    SELECT s.message_id, s.citation_index, 'note', c.id, n.id,
+      CASE WHEN n.title = '' THEN 'Nota sin título' ELSE n.title END,
+      n.updated_at, c.content, NULL::integer, NULL::double precision, NULL::double precision, s.relevance_score
+    FROM message_sources s JOIN messages m ON m.id = s.message_id
+    JOIN note_chunks c ON c.id = s.note_chunk_id JOIN notes n ON n.id = c.note_id
+    WHERE m.conversation_id = $1 AND m.workspace_id = $2 AND s.workspace_id = $2
+      AND c.workspace_id = $2 AND n.workspace_id = $2 AND n.deleted_at IS NULL
+    UNION ALL
+    SELECT s.message_id, s.citation_index, 'meeting', c.id, r.id, r.title,
+      r.meeting_date, c.content, NULL::integer, c.start_seconds, c.end_seconds, s.relevance_score
+    FROM message_sources s JOIN messages m ON m.id = s.message_id
+    JOIN meeting_chunks c ON c.id = s.meeting_chunk_id JOIN meetings r ON r.id = c.meeting_id
+    WHERE m.conversation_id = $1 AND m.workspace_id = $2 AND s.workspace_id = $2
+      AND c.workspace_id = $2 AND r.workspace_id = $2 AND r.deleted_at IS NULL
+    ORDER BY citation_index
+  `, [conversationId, access.workspaceId]) : []
 
-  const byMessage = new Map<string, typeof sources>()
-  for (const source of sources) {
-    const list = byMessage.get(source.messageId) ?? []
-    list.push(source)
-    byMessage.set(source.messageId, list)
+  const byMessage = new Map<string, Citation[]>()
+  for (const row of sources) {
+    const source = {
+      kind: row.kind, chunkId: row.chunk_id, resourceId: row.resource_id,
+      resourceTitle: row.resource_title, resourceDate: row.resource_date,
+      pageNumber: row.page_number, startSeconds: row.start_seconds, endSeconds: row.end_seconds,
+    }
+    const list = byMessage.get(row.message_id) ?? []
+    list.push({
+      ...source, index: row.citation_index, score: row.relevance_score,
+      href: citationHref(source), label: citationLabel(source), excerpt: truncate(row.content, 280),
+    })
+    byMessage.set(row.message_id, list)
   }
 
   return rows.map((message) => ({
     ...message,
     sourceCount: byMessage.get(message.id)?.length ?? 0,
+    citations: byMessage.get(message.id) ?? [],
   }))
 }
 

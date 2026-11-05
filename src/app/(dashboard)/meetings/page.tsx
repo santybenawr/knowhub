@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { Mic } from 'lucide-react'
 import { requirePageContext } from '@/server/auth/guard'
 import { listMeetings } from '@/server/meetings'
@@ -16,15 +17,14 @@ export const metadata: Metadata = { title: 'Reuniones' }
 export default async function MeetingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ project?: string }>
+  searchParams: Promise<{ project?: string | string[] }>
 }) {
   const { access } = await requirePageContext()
   const { project } = await searchParams
-
-  const [meetings, projects] = await Promise.all([
-    listMeetings(access.workspaceId, { projectId: project ?? null }),
-    listProjects(access.workspaceId),
-  ])
+  const projectId = (Array.isArray(project) ? project[0] : project) || null
+  const projects = await listProjects(access.workspaceId)
+  if (projectId && !projects.some(item => item.id === projectId)) notFound()
+  const meetings = await listMeetings(access.workspaceId, { projectId })
 
   const projectNames = new Map(projects.map((p) => [p.id, p.name]))
 
@@ -47,7 +47,7 @@ export default async function MeetingsPage({
       {projects.length > 0 ? (
         <MeetingFilters
           projects={projects.map((p) => ({ id: p.id, name: p.name }))}
-          selected={project ?? null}
+          selected={projectId}
         />
       ) : null}
 

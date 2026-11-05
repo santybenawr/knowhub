@@ -1,18 +1,22 @@
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
-import { ResourceIcon, resourceHref } from '@/components/shared/resource-card'
+import { ResourceIcon } from '@/components/shared/resource-card'
 import { formatDateEs, formatTimestamp } from '@/lib/time'
 import type { SearchHit } from '@/server/search/types'
+import { citationHref } from '@/server/ai/rag'
+import { formatMeetingDate } from '@/lib/meeting-date'
 
 /** §107/§108/§109 — Each result shows where the match came from. */
-export function SearchResults({ query, results }: { query: string; results: SearchHit[] }) {
+export function SearchResults({ query, results, localMode = false }: { query: string; results: SearchHit[]; localMode?: boolean }) {
   if (query.length === 0) {
     return (
       <EmptyState
         icon={<Search className="size-6" />}
-        title="Busca por palabras o por significado."
-        description="KnowHub combina coincidencias exactas con similitud semántica, así que también encuentra lo que recuerdas a medias."
+        title={localMode ? 'Encuentra lo que guardaste.' : 'Busca por palabras o por significado.'}
+        description={localMode
+          ? 'Escribe palabras que aparezcan en tus documentos, notas o transcripciones. También puedes filtrar por tipo y proyecto.'
+          : 'KnowHub combina coincidencias exactas con similitud semántica, así que también encuentra lo que recuerdas a medias.'}
       />
     )
   }
@@ -36,11 +40,7 @@ export function SearchResults({ query, results }: { query: string; results: Sear
         {results.map((hit) => (
           <li key={hit.chunkId}>
             <Link
-              href={
-                hit.kind === 'meeting'
-                  ? `/meetings/${hit.resourceId}?t=${Math.floor(hit.startSeconds ?? 0)}`
-                  : resourceHref(hit.kind, hit.resourceId)
-              }
+              href={citationHref(hit)}
               className="block rounded-card border border-border-subtle bg-surface p-4 transition-colors hover:border-border-strong"
             >
               <div className="flex items-center gap-2 text-xs text-ink-faint">
@@ -60,7 +60,7 @@ export function SearchResults({ query, results }: { query: string; results: Sear
               <p className="mt-2 text-sm leading-relaxed text-ink-muted">“{hit.excerpt}”</p>
 
               <div className="mt-2 flex flex-wrap items-center gap-x-3 text-xs text-ink-faint">
-                <span>{formatDateEs(hit.resourceDate)}</span>
+                <span>{hit.kind === 'meeting' ? formatMeetingDate(hit.resourceDate) : formatDateEs(hit.resourceDate)}</span>
                 {hit.projectName ? <span>{hit.projectName}</span> : null}
                 <span title="Relevancia combinada de búsqueda por palabras y semántica">
                   Relevancia {(hit.score * 100).toFixed(0)}%

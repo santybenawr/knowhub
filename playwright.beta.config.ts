@@ -13,7 +13,7 @@ export default defineConfig({
   use: { baseURL, trace: 'off', locale: 'es-CO', ...devices['Desktop Chrome'] },
   ...(remote ? {} : {
     webServer: {
-      command: 'pnpm exec next build --webpack && pnpm exec next start --hostname 127.0.0.1 --port 3013',
+      command: 'node node_modules/next/dist/bin/next build --webpack && node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3013',
       url: `${baseURL}/login`,
       reuseExistingServer: false,
       timeout: 240_000,

@@ -1,12 +1,14 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { AlertTriangle, ArrowUp, Loader2, Search, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/field'
 import { cn } from '@/lib/utils'
 import { AnswerWithCitations, CitationList, type CitationView } from './citations'
 import { useAsk, type AskScope } from './use-ask'
+import { ConversationHistory, type ConversationMessageView } from './conversation-history'
 
 /**
  * §100/§102/§117 — Ask surface, shared by `/ask` and the meeting "Preguntar" tab.
@@ -22,6 +24,7 @@ export function AskPanel({
   emptyTitle = '¿Qué quieres recordar?',
   emptyDescription = 'Pregunta en lenguaje natural. KnowHub responde solo con lo que hay en tu biblioteca y te muestra la fuente.',
   className,
+  initialConversation,
 }: {
   scope: AskScope
   placeholder?: string
@@ -30,8 +33,12 @@ export function AskPanel({
   emptyTitle?: string
   emptyDescription?: string
   className?: string
+  initialConversation?: { messages: ConversationMessageView[]; conversationId: string }
 }) {
-  const { turns, pending, ask } = useAsk(scope)
+  const { turns, pending, ask, conversationId } = useAsk(scope, initialConversation)
+  // New streamed turns already render below. A refresh must not duplicate them
+  // by replacing this opening snapshot with the newly persisted messages.
+  const [savedMessages] = React.useState(() => initialConversation?.messages ?? [])
   const [value, setValue] = React.useState('')
   const endRef = React.useRef<HTMLDivElement>(null)
 
@@ -40,14 +47,20 @@ export function AskPanel({
   }, [turns])
 
   const submit = async (question: string) => {
-    if (!question.trim() || pending) return
+    if (question.trim().length < 2 || question.trim().length > 2000 || pending) return
     setValue('')
     await ask(question)
   }
 
   return (
     <div className={cn('flex flex-col gap-5', className)}>
-      {turns.length === 0 ? (
+      {conversationId && !initialConversation ? (
+        <Link href={`/ask/${conversationId}`} className="self-start text-sm text-brand hover:underline">
+          Abrir conversación guardada
+        </Link>
+      ) : null}
+      <ConversationHistory messages={savedMessages} />
+      {turns.length === 0 && savedMessages.length === 0 ? (
         <div className="rounded-card border border-dashed border-border-strong px-6 py-10 text-center">
           <Sparkles className="mx-auto size-6 text-brand" aria-hidden />
           <h2 className="mt-3 text-lg font-semibold text-ink">{emptyTitle}</h2>
@@ -70,7 +83,7 @@ export function AskPanel({
             </ul>
           ) : null}
         </div>
-      ) : (
+      ) : turns.length > 0 ? (
         <ol className="space-y-6">
           {turns.map((turn) => (
             <li key={turn.id} className="space-y-3">
@@ -102,10 +115,14 @@ export function AskPanel({
                     {...(onCitationClick ? { onCitationClick } : {})}
                     className="mt-4 border-t border-border-subtle pt-4"
                   />
+                  {[...turn.answer.matchAll(/\[(\d+)\]/g)].some(match => !turn.citations.some(citation => citation.index === Number(match[1]))) ? (
+                    <p className="mt-3 text-xs text-ink-muted">Las fuentes de esta respuesta ya no están disponibles. Pueden haberse eliminado o actualizado.</p>
+                  ) : null}
                 </div>
               ) : null}
 
               {turn.status === 'error' ? (
+                <div className="space-y-2">
                 <p
                   className="flex items-start gap-2 rounded-lg border border-record/40 bg-record-soft p-3 text-sm text-ink"
                   role="alert"
@@ -113,12 +130,16 @@ export function AskPanel({
                   <AlertTriangle className="mt-0.5 size-4 shrink-0 text-record" aria-hidden />
                   {turn.error}
                 </p>
+                <Button variant="secondary" size="sm" disabled={pending} onClick={() => void submit(turn.question)}>
+                  Reintentar pregunta
+                </Button>
+                </div>
               ) : null}
             </li>
           ))}
-          <div ref={endRef} />
         </ol>
-      )}
+      ) : null}
+      <div ref={endRef} />
 
       <form
         onSubmit={(event) => {
@@ -132,7 +153,7 @@ export function AskPanel({
             value={value}
             onChange={(event) => setValue(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
+              if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                 event.preventDefault()
                 void submit(value)
               }
@@ -140,9 +161,10 @@ export function AskPanel({
             placeholder={placeholder}
             aria-label="Tu pregunta"
             rows={1}
+            maxLength={2000}
             className="min-h-10 flex-1 resize-none border-0 bg-transparent focus:border-0"
           />
-          <Button type="submit" size="icon" disabled={!value.trim() || pending} aria-label="Preguntar">
+          <Button type="submit" size="icon" disabled={value.trim().length < 2 || pending} aria-label="Preguntar">
             {pending ? <Loader2 className="animate-spin" /> : <ArrowUp />}
           </Button>
         </div>

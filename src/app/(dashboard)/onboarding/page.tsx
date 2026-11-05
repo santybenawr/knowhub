@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser, resolveWorkspace } from '@/server/auth/session'
 import { ensurePersonalWorkspace } from '@/server/auth/service'
 import { OnboardingFlow } from '@/components/shared/onboarding-flow'
-import { completeOnboardingAction } from './actions'
+import { completeOnboardingAction, skipOnboardingAction } from './actions'
 
 export const metadata: Metadata = { title: 'Bienvenido' }
 
@@ -23,6 +23,7 @@ export default async function OnboardingPage() {
     <OnboardingFlow
       name={user.name.split(' ')[0] ?? user.name}
       onComplete={completeOnboardingAction}
+      onSkip={skipOnboardingAction}
     />
   )
 }

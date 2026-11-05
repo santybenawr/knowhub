@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { Input } from '@/components/ui/field'
 import { cn } from '@/lib/utils'
 import { isPublicBeta } from '@/lib/release'
+import { flushPendingChanges } from '@/lib/pending-changes'
 
 type Command = {
   id: string
@@ -22,6 +23,7 @@ export function CommandPalette({ projects }: { projects: Array<{ id: string; nam
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
   const [highlighted, setHighlighted] = React.useState(0)
+  const [navigating, setNavigating] = React.useState(false)
 
   React.useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -35,12 +37,18 @@ export function CommandPalette({ projects }: { projects: Array<{ id: string; nam
   }, [])
 
   const go = React.useCallback(
-    (href: string) => {
+    async (href: string) => {
       setOpen(false)
       setQuery('')
-      router.push(href)
+      if (navigating || `${window.location.pathname}${window.location.search}` === href) return
+      setNavigating(true)
+      try {
+        if (await flushPendingChanges()) router.push(href)
+      } finally {
+        setNavigating(false)
+      }
     },
-    [router],
+    [navigating, router],
   )
 
   const commands = React.useMemo<Command[]>(() => {

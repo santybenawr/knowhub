@@ -30,12 +30,14 @@ export function TranscriptView({
   currentTime,
   onSeek,
   onRenameSpeaker,
+  hasAudio = true,
 }: {
   segments: TranscriptSegmentView[]
   speakers: Array<{ speakerKey: string; displayName: string }>
   currentTime: number
   onSeek: (seconds: number) => void
   onRenameSpeaker?: (speakerKey: string, displayName: string) => Promise<ActionResult<undefined>>
+  hasAudio?: boolean
 }) {
   const activeId = React.useMemo(() => {
     const active = segments.find((s) => currentTime >= s.startSeconds && currentTime < s.endSeconds)
@@ -67,7 +69,7 @@ export function TranscriptView({
           onChange={(event) => setAutoScroll(event.target.checked)}
           className="size-3.5 accent-[var(--color-brand)]"
         />
-        Seguir el audio automáticamente
+        {hasAudio ? 'Seguir el audio automáticamente' : 'Desplazar al fragmento seleccionado'}
       </label>
 
       <ol className="space-y-1">
@@ -87,7 +89,7 @@ export function TranscriptView({
                   type="button"
                   onClick={() => onSeek(segment.startSeconds)}
                   className="shrink-0 font-mono text-xs tabular-nums text-brand transition-opacity hover:opacity-75"
-                  aria-label={`Reproducir desde ${formatTimestamp(segment.startSeconds)}`}
+                  aria-label={`${hasAudio ? 'Reproducir desde' : 'Ver fragmento en'} ${formatTimestamp(segment.startSeconds)}`}
                 >
                   {formatTimestamp(segment.startSeconds)}
                 </button>
@@ -117,6 +119,7 @@ function SpeakerLegend({
   const [editing, setEditing] = React.useState<string | null>(null)
   const [value, setValue] = React.useState('')
   const [pending, startTransition] = React.useTransition()
+  const [error, setError] = React.useState<string | null>(null)
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -127,9 +130,15 @@ function SpeakerLegend({
             <form
               onSubmit={(event) => {
                 event.preventDefault()
+                setError(null)
                 startTransition(async () => {
-                  await onRename(speaker.speakerKey, value)
-                  setEditing(null)
+                  try {
+                    const result = await onRename(speaker.speakerKey, value)
+                    if (!result.ok) { setError(result.error); return }
+                    setEditing(null)
+                  } catch {
+                    setError('No pudimos guardar el nombre. Revisa tu conexión e inténtalo de nuevo.')
+                  }
                 })
               }}
               className="flex items-center gap-1"
@@ -140,6 +149,7 @@ function SpeakerLegend({
                 autoFocus
                 className="h-7 w-32 text-xs"
                 aria-label={`Nombre para ${speaker.displayName}`}
+                maxLength={80}
               />
               <Button type="submit" size="icon" className="size-7" loading={pending} aria-label="Guardar">
                 <Check />
@@ -149,7 +159,8 @@ function SpeakerLegend({
                 variant="ghost"
                 size="icon"
                 className="size-7"
-                onClick={() => setEditing(null)}
+                onClick={() => { setEditing(null); setError(null) }}
+                disabled={pending}
                 aria-label="Cancelar"
               >
                 <X />
@@ -161,6 +172,7 @@ function SpeakerLegend({
               onClick={() => {
                 setEditing(speaker.speakerKey)
                 setValue(speaker.displayName)
+                setError(null)
               }}
               className="group flex items-center gap-1.5 rounded-full border border-border-subtle bg-surface px-2.5 py-1 text-xs text-ink transition-colors hover:border-border-strong"
             >
@@ -170,6 +182,7 @@ function SpeakerLegend({
           )}
         </div>
       ))}
+      {error ? <p className="w-full text-xs text-record" role="alert">{error}</p> : null}
     </div>
   )
 }

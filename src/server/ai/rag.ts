@@ -1,5 +1,6 @@
 import { SEARCH_CONFIG } from '@/config/search'
 import { formatTimestamp, formatDateEs } from '@/lib/time'
+import { formatMeetingDate } from '@/lib/meeting-date'
 import { truncate } from '@/lib/text'
 import { search, type ResourceKind, type SearchFilters, type SearchHit } from '@/server/search'
 import { buildRagMessages, NO_EVIDENCE_ANSWER, type EvidenceItem } from './prompts'
@@ -75,7 +76,7 @@ export function scopeLabel(scope: RagScope): string {
   }
 }
 
-export function citationHref(hit: SearchHit): string {
+export function citationHref(hit: Pick<SearchHit, 'kind' | 'resourceId' | 'chunkId' | 'startSeconds'>): string {
   switch (hit.kind) {
     case 'meeting':
       // §83 — deep link seeks the player to the cited moment.
@@ -87,8 +88,8 @@ export function citationHref(hit: SearchHit): string {
   }
 }
 
-export function citationLabel(hit: SearchHit): string {
-  const date = formatDateEs(hit.resourceDate)
+export function citationLabel(hit: Pick<SearchHit, 'kind' | 'resourceTitle' | 'resourceDate' | 'pageNumber' | 'startSeconds'>): string {
+  const date = hit.kind === 'meeting' ? formatMeetingDate(hit.resourceDate) : formatDateEs(hit.resourceDate)
   switch (hit.kind) {
     case 'meeting':
       return `${hit.resourceTitle} · ${date} · ${formatTimestamp(hit.startSeconds ?? 0)}`

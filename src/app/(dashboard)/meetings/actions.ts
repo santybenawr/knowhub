@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { getDb } from '@/server/db/client'
@@ -21,6 +20,7 @@ import { enqueueAndRun } from '@/server/jobs'
 import { enforceRateLimit } from '@/server/rate-limit'
 import { fail, ok, type ActionResult } from '@/lib/action-result'
 import { toUserMessage } from '@/lib/errors'
+import { parseMeetingDate, todayMeetingDate } from '@/lib/meeting-date'
 
 const createSchema = z.object({
   title: z.string().trim().max(200).optional(),
@@ -43,13 +43,14 @@ export async function createMeetingAction(
     if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Datos inválidos.')
 
     const projectId = await assertProjectInWorkspace(parsed.data.projectId ?? null, access.workspaceId)
-    const meetingDate = parsed.data.meetingDate ? new Date(parsed.data.meetingDate) : new Date()
+    const meetingDate = parseMeetingDate(parsed.data.meetingDate || todayMeetingDate())
+    if (!meetingDate) return fail('Selecciona una fecha válida para la reunión.')
 
     const meetingId = await createMeeting({
       access,
       title: parsed.data.title ?? null,
       projectId,
-      meetingDate: Number.isNaN(meetingDate.getTime()) ? new Date() : meetingDate,
+      meetingDate,
       language: parsed.data.language,
       participants: (parsed.data.participants ?? '')
         .split(',')
@@ -97,9 +98,11 @@ export async function importTranscriptAction(input: {
   transcript: string
 }): Promise<ActionResult<undefined>> {
   try {
+    const parsed = z.object({ meetingId: z.string().uuid(), transcript: z.string().max(200_000) }).safeParse(input)
+    if (!parsed.success) return fail('Revisa la transcripción: debe ser texto de hasta 200.000 caracteres.')
     const { user } = await requirePageContext()
-    const access = await requireMeetingAccess(user.id, input.meetingId, 'content:create')
-    await importTranscript({ access, meetingId: input.meetingId, transcript: input.transcript })
+    const access = await requireMeetingAccess(user.id, parsed.data.meetingId, 'content:create')
+    await importTranscript({ access, ...parsed.data })
     revalidatePath(`/meetings/${input.meetingId}`)
     return ok()
   } catch (err) {
@@ -113,6 +116,9 @@ export async function renameSpeakerAction(input: {
   displayName: string
 }): Promise<ActionResult<undefined>> {
   try {
+    if (!z.object({ meetingId: z.string().uuid(), speakerKey: z.string().min(1).max(80), displayName: z.string().max(80) }).safeParse(input).success) {
+      return fail('Revisa el nombre del hablante; admite hasta 80 caracteres.')
+    }
     const { user } = await requirePageContext()
     const access = await requireMeetingAccess(user.id, input.meetingId, 'content:edit')
     await renameSpeaker({
@@ -137,6 +143,9 @@ export async function retryStageAction(input: {
   stage: 'transcription' | 'analysis' | 'embedding'
 }): Promise<ActionResult<undefined>> {
   try {
+    if (!z.object({ meetingId: z.string().uuid(), stage: z.enum(['transcription', 'analysis', 'embedding']) }).safeParse(input).success) {
+      return fail('La etapa que intentas procesar no es válida.')
+    }
     const { user } = await requirePageContext()
     const access = await requireMeetingAccess(user.id, input.meetingId, 'content:edit')
     await enforceRateLimit('reanalyze', access.userId)
@@ -175,7 +184,8 @@ export async function deleteMeetingAction(
     return fail(toUserMessage(err))
   }
   revalidatePath('/meetings')
-  redirect('/meetings')
+  revalidatePath('/library')
+  return ok()
 }
 
 /** Runs the pipeline inline. Used by tests and by the manual "procesar" button. */

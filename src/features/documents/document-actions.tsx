@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { MoreHorizontal, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,7 @@ export function DocumentActions({
   onDelete: (documentId: string) => Promise<ActionResult<undefined>>
 }) {
   const { notify } = useToast()
+  const router = useRouter()
   const [confirm, setConfirm] = React.useState(false)
   const [pending, startTransition] = React.useTransition()
 
@@ -32,7 +34,7 @@ export function DocumentActions({
     <>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Más acciones">
+          <Button variant="ghost" size="icon" aria-label="Más acciones" disabled={pending}>
             <MoreHorizontal />
           </Button>
         </DropdownMenu.Trigger>
@@ -45,11 +47,11 @@ export function DocumentActions({
             <DropdownMenu.Item
               onSelect={() =>
                 startTransition(async () => {
-                  const result = await onReprocess(documentId)
-                  notify(
-                    result.ok ? 'Reprocesando el documento…' : result.error,
-                    result.ok ? 'info' : 'error',
-                  )
+                  try {
+                    const result = await onReprocess(documentId)
+                    notify(result.ok ? 'Reprocesando el documento…' : result.error, result.ok ? 'info' : 'error')
+                    if (result.ok) router.refresh()
+                  } catch { notify('No pudimos iniciar el procesamiento. Intenta de nuevo.', 'error') }
                 })
               }
               className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink-muted outline-none data-[highlighted]:bg-surface-muted"
@@ -68,7 +70,7 @@ export function DocumentActions({
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
 
-      <Dialog open={confirm} onOpenChange={setConfirm}>
+      <Dialog open={confirm} onOpenChange={next => { if (!pending) setConfirm(next) }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>¿Eliminar este documento?</DialogTitle>
@@ -77,13 +79,22 @@ export function DocumentActions({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirm(false)}>
+            <Button variant="ghost" onClick={() => setConfirm(false)} disabled={pending}>
               Cancelar
             </Button>
             <Button
               variant="danger"
               loading={pending}
-              onClick={() => startTransition(() => void onDelete(documentId))}
+              onClick={() => startTransition(async () => {
+                try {
+                  const result = await onDelete(documentId)
+                  if (!result.ok) { notify(result.error, 'error'); return }
+                  notify('Documento eliminado.', 'success')
+                  setConfirm(false)
+                  router.push('/library')
+                  router.refresh()
+                } catch { notify('No pudimos eliminar el documento. Intenta de nuevo.', 'error') }
+              })}
             >
               Eliminar
             </Button>

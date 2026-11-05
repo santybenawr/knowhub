@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { Select } from '@/components/ui/field'
 import { AskPanel } from './ask-panel'
 import type { AskScope } from './use-ask'
@@ -76,7 +77,9 @@ export function AskWorkspace({
           <ul className="space-y-1">
             {recentConversations.map((conversation) => (
               <li key={conversation.id} className="truncate text-sm text-ink-muted">
-                {conversation.title}
+                <Link href={`/ask/${conversation.id}`} className="block rounded-lg px-3 py-2 hover:bg-surface-muted hover:text-ink">
+                  {conversation.title}
+                </Link>
               </li>
             ))}
           </ul>

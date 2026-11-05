@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge'
 import { formatDateEs, formatDurationHuman } from '@/lib/time'
 import { cn } from '@/lib/utils'
 import type { ResourceKind } from '@/server/search/types'
+import { documentFormatLabel } from '@/lib/document-formats'
+import { formatMeetingDate } from '@/lib/meeting-date'
 
 const ICONS = { document: FileText, note: NotebookPen, meeting: Mic } as const
 const LABELS = { document: 'Documento', note: 'Nota', meeting: 'Reunión' } as const
@@ -30,6 +32,7 @@ export function ResourceCard({
   status,
   excerpt,
   speakerCount,
+  mimeType,
 }: {
   kind: ResourceKind
   id: string
@@ -41,7 +44,9 @@ export function ResourceCard({
   status?: string
   excerpt?: string | null
   speakerCount?: number
+  mimeType?: string | null
 }) {
+  const format = kind === 'document' ? documentFormatLabel(mimeType) : null
   return (
     <Link
       href={resourceHref(kind, id)}
@@ -50,7 +55,7 @@ export function ResourceCard({
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 text-ink-faint">
           <ResourceIcon kind={kind} />
-          <span className="text-xs font-medium uppercase tracking-wide">{LABELS[kind]}</span>
+          <span className="text-xs font-medium uppercase tracking-wide">{format ?? LABELS[kind]}</span>
         </div>
         <StatusBadge status={status} />
       </div>
@@ -60,7 +65,7 @@ export function ResourceCard({
       {excerpt ? <p className="line-clamp-2 text-sm text-ink-muted">{excerpt}</p> : null}
 
       <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-ink-faint">
-        <span>{formatDateEs(date)}</span>
+        <span>{kind === 'meeting' ? formatMeetingDate(date) : formatDateEs(date)}</span>
         {durationSeconds ? <span>{formatDurationHuman(durationSeconds)}</span> : null}
         {speakerCount ? <span>{speakerCount} hablantes</span> : null}
         {projectName ? <span className="truncate">{projectName}</span> : null}
