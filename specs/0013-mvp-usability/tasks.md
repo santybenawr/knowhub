@@ -14,4 +14,5 @@
 - [x] Añadir pruebas de regresión unitarias, integración y navegador.
 - [x] Completar la validación local final de los cambios y recorridos de navegador.
 - [ ] Restaurar la conexión de producción y verificar persistencia/aislamiento remotos.
-- [ ] Preparar, validar y promover el despliegue de esta revisión; registrar URL y commit.
+- [x] Preparar el despliegue de esta revisión y registrar URL, commit y bloqueo remoto.
+- [ ] Validar persistencia en el despliegue preparado y promoverlo al dominio público.
