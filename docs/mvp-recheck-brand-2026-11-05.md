@@ -61,6 +61,28 @@ sigue bloqueando el recorrido remoto. El reporte autorizado tiene número
 Se debe recuperar la conexión, validar los flujos remotos y promover el nuevo
 build probado. No se resetearon datos, rotaron contraseñas ni cambiaron planes.
 
+### Despliegue preparado con la marca
+
+- Proyecto/equipo: `sacramented/knowhub-app`.
+- Commit probado: `da08f964dcb004c3e2d028272e9272dd35e54208`, subido a
+  `origin/codex/knowhub-production-readiness`.
+- Despliegue: `dpl_GWuZNqLozfLzN4s6Gtzcjh7bAtVS`, **READY**, objetivo production,
+  creado con `--skip-domain`; la API confirma el commit y `alias: []`.
+- URL protegida: https://knowhub-bemz1tj4k-sacramented.vercel.app
+- Inspección: https://vercel.com/sacramented/knowhub-app/GWuZNqLozfLzN4s6Gtzcjh7bAtVS
+- Build remoto Webpack aprobado. `/signup` y `/brand/knowhub-3d.webp`: HTTP 200.
+  El HTML contiene el formulario y la nueva marca; la imagen descargada coincide
+  byte por byte con el archivo probado localmente.
+- `/api/health`: HTTP 503. Los registros del nuevo despliegue confirman `28P01`.
+- El dominio público sigue en `dpl_3ZjLZVzPUPAMVLLfvX729k1m8Zod`; no se promovió.
+
+Este despliegue reemplaza al anterior preparado para la futura promoción.
+Después de recuperar y verificar registro/persistencia/aislamiento remotos:
+
+```bash
+vercel promote https://knowhub-bemz1tj4k-sacramented.vercel.app --scope sacramented
+```
+
 ## Repetir la comprobación local
 
 ```bash
