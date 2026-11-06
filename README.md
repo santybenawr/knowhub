@@ -157,14 +157,26 @@ Sin `DATABASE_URL`, KnowHub usa [PGlite](https://pglite.dev): PostgreSQL real
 compilado a WASM, con pgvector y búsqueda de texto completo. No es un mock —
 es el mismo SQL y las mismas migraciones que en producción.
 
-Para producción (Supabase o cualquier PostgreSQL 15+):
+Para producción con PostgreSQL 15+ y la compatibilidad descrita a continuación:
 
 ```bash
 DATABASE_URL=postgresql://... pnpm db:migrate
 ```
 
 La migración `0002_rls` activa Row Level Security y solo se aplica sobre
-PostgreSQL real.
+PostgreSQL remoto. Las migraciones históricas `0002` y `0005` requieren
+`auth.uid()`, disponible en Supabase; no basta con apuntar a una base PostgreSQL
+genérica vacía. En la recuperación hacia Neon se creó, antes de migrar, una
+función privada de compatibilidad que devuelve siempre `NULL::uuid`, sin
+permiso de ejecución para `PUBLIC`. No implementa autenticación de usuarios:
+KnowHub conserva sus contraseñas scrypt y sesiones propias.
+
+El servidor usa un rol con `BYPASSRLS` y valida la pertenencia al workspace en
+cada operación. Las credenciales permanecen exclusivamente en el backend y el
+aislamiento se prueba con cuentas independientes. Neon usa TLS con las raíces
+de confianza del sistema; no reutilizar la CA específica de Supabase ni
+desactivar la verificación de certificados. Ver el estado y las condiciones
+de publicación en el [informe de recuperación](docs/incident-recovery-2026-11-05.md).
 
 ## Storage
 

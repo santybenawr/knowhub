@@ -1,5 +1,18 @@
 # Segunda verificación y marca 3D — 05/11/2026
 
+**Estado final:** servicio recuperado mediante Neon, con datos conservados y
+pruebas remotas aprobadas antes y después de publicar. Ver el
+[informe de recuperación](incident-recovery-2026-11-05.md). Las observaciones de
+Supabase que siguen corresponden al diagnóstico previo a esa recuperación.
+
+**Primera promoción:** por solicitud expresa del propietario, el build
+`dpl_GWuZNqLozfLzN4s6Gtzcjh7bAtVS` se promovió al dominio público el 05/11/2026.
+La inspección de Vercel confirma el nuevo destino. `/signup` y la marca responden
+200 sin autenticación de Vercel; el logo coincide con el archivo probado.
+`/api/health` sigue en 503: publicar el build no resolvió la conexión de Supabase.
+La recuperación de datos/conexión se documentó por separado. Las notas
+de preparación siguientes conservan la evidencia anterior a la promoción.
+
 ## Alcance y cambios
 
 Repetición de las pruebas del MVP tras la auditoría operativa y sustitución del

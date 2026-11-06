@@ -1,5 +1,11 @@
 # Lanzamiento de la beta pública
 
+**Actualización del 05/11/2026:** servicio recuperado y publicado con Neon,
+con datos originales conservados y pruebas remotas aprobadas. La incidencia
+posterior de Supabase y la recuperación se documentan en el
+[informe de recuperación](incident-recovery-2026-11-05.md). El estado histórico
+del lanzamiento que sigue no acredita la disponibilidad actual.
+
 Estado al 22/10/2026: **beta publicada y recorrido completo remoto aprobado**.
 Dirección pública: https://knowhub-app-sacramented.vercel.app
 Despliegue `dpl_3ZjLZVzPUPAMVLLfvX729k1m8Zod`, código `a9931aa`, Next 16.4.1.
@@ -39,8 +45,10 @@ La base remota arranca vacía, sin la cuenta demo de contraseña pública.
    No volver a crear la integración ni el almacén: ambos existen.
 2. Obtener variables mediante Vercel a un archivo ignorado en `.data/launch/`;
    no sustituir `.env.local` de desarrollo con credenciales de producción.
-3. Mapear `DATABASE_URL` a la conexión agrupada del proveedor y configurar
-   `DATABASE_SSL_CA`. El cliente exige verificación TLS; nunca desactivarla.
+3. Mapear `DATABASE_URL` a la conexión agrupada del proveedor. Configurar
+   `DATABASE_SSL_CA` solo cuando el proveedor requiera una CA específica.
+   Neon utiliza las raíces de confianza del sistema; retirar la CA antigua de
+   Supabase al cambiar a Neon. El cliente exige verificación TLS; nunca desactivarla.
 4. Mantener `STORAGE_PROVIDER=vercel-blob` y el almacén privado conectado.
    La aplicación limita los archivos a 4 MiB. Comprobar que no permite lecturas
    anónimas ni modificar la ruta de un enlace firmado.

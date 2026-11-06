@@ -99,7 +99,10 @@ test('public registration persists notes and privately processes a document and 
   await page.goto(noteUrl)
   await expect(page.getByLabel('Contenido')).toHaveValue(/zarzamora/)
 
-  const otherContext = await browser.newContext({ baseURL })
+  const otherContext = await browser.newContext({
+    baseURL,
+    storageState: process.env.KNOWHUB_BETA_STORAGE_STATE,
+  })
   const other = await otherContext.newPage()
   other.on('pageerror', error => browserErrors.push(error.message))
   try {

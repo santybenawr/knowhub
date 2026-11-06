@@ -10,7 +10,11 @@ export default defineConfig({
   timeout: 120_000,
   expect: { timeout: 30_000 },
   reporter: 'list',
-  use: { baseURL, trace: 'off', locale: 'es-CO', ...devices['Desktop Chrome'] },
+  use: {
+    baseURL, trace: 'off', locale: 'es-CO', ...devices['Desktop Chrome'],
+    // Optional, private state containing only the deployment-protection cookie.
+    storageState: process.env.KNOWHUB_BETA_STORAGE_STATE,
+  },
   ...(remote ? {} : {
     webServer: {
       command: 'node node_modules/next/dist/bin/next build --webpack && node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3013',
